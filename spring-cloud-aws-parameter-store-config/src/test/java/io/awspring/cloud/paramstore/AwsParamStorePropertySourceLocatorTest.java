@@ -52,6 +52,7 @@ class AwsParamStorePropertySourceLocatorTest {
 		AwsParamStoreProperties properties = new AwsParamStoreProperties();
 		properties.setPrefix("application");
 		properties.setName("application");
+		properties.setDefaultContext("application");
 
 		GetParametersByPathResult firstResult = getFirstResult();
 		GetParametersByPathResult nextResult = getNextResult();
