@@ -1,15 +1,17 @@
 package io.awspring.cloud.v3.dynamodb.core.coverter;
 
-import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 import org.springframework.core.convert.ConversionFailedException;
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.convert.converter.ConverterFactory;
-import org.springframework.core.convert.converter.GenericConverter;
 import org.springframework.util.Assert;
 import org.springframework.util.NumberUtils;
 
@@ -27,16 +29,29 @@ public class DynamoDbConverters {
 
 		List<Object> converters = new ArrayList<>();
 
-		converters.add(StringToMarshallTypeString.INSTANCE);
-		converters.add(AttributeValueTypeStringToString.INSTANCE);
+		converters.add(StringToAttributeValue.INSTANCE);
+		converters.add(AttributeValueToString.INSTANCE);
 		converters.add(AttributeValueToNumber.INSTANCE);
 		converters.add(NumberToAttributeValue.INSTANCE);
 		converters.add(URLToAttributeValue.INSTANCE);
 		converters.add(AttributeValueToURLConverter.INSTANCE);
+		converters.add(DateToAttributeValue.INSTANCE);
+		converters.add(LocalDateToAttributeValue.INSTANCE);
+		converters.add(LocalDateTimeToAttributeValue.INSTANCE);
+		converters.add(ZoneIdToAttributeValue.INSTANCE);
+		converters.add(AttributeValueToString.INSTANCE);
+		converters.add(InstantToAttributeValue.INSTANCE);
+		converters.add(BooleanToAttributeValue.INSTANCE);
+		converters.add(AttributeValueToBoolean.INSTANCE);
+		converters.add(AttributeValueToLocalDateTime.INSTANCE);
+		converters.add(AttributeValueToLocalDate.INSTANCE);
+		converters.add(AttributeValueToZoneId.INSTANCE);
+		converters.add(AttributeValueToInstant.INSTANCE);
+		converters.add(AttributeValueToDate.INSTANCE);
 		return converters;
 	}
 
-	enum StringToMarshallTypeString implements Converter<String, AttributeValue> {
+	enum StringToAttributeValue implements Converter<String, AttributeValue> {
 		INSTANCE;
 
 		public AttributeValue convert(String source) {
@@ -44,13 +59,30 @@ public class DynamoDbConverters {
 		}
 	}
 
-	enum AttributeValueTypeStringToString implements Converter<AttributeValue, String> {
+	enum AttributeValueToString implements Converter<AttributeValue, String> {
 		INSTANCE;
 
 		public String convert(AttributeValue source) {
 			return source.s();
 		}
 	}
+
+	enum BooleanToAttributeValue implements Converter<Boolean, AttributeValue> {
+		INSTANCE;
+
+		public AttributeValue convert(Boolean source) {
+			return AttributeValue.builder().bool(source).build();
+		}
+	}
+
+	enum AttributeValueToBoolean implements Converter<AttributeValue, Boolean> {
+		INSTANCE;
+
+		public Boolean convert(AttributeValue source) {
+			return source.bool();
+		}
+	}
+
 
 	public enum AttributeValueToNumber
 			implements ConverterFactory<AttributeValue, Number> {
@@ -115,6 +147,96 @@ public class DynamoDbConverters {
 			catch (MalformedURLException e) {
 				throw new ConversionFailedException(SOURCE, TARGET, source, e);
 			}
+		}
+	}
+
+	public enum DateToAttributeValue implements Converter<Date, AttributeValue> {
+
+		INSTANCE;
+
+		public AttributeValue convert(Date source) {
+			return AttributeValue.builder().s(source.toString()).build();
+		}
+	}
+
+	public enum LocalDateToAttributeValue implements Converter<LocalDate, AttributeValue> {
+
+		INSTANCE;
+
+		public AttributeValue convert(LocalDate source) {
+			return AttributeValue.builder().s(source.toString()).build();
+		}
+	}
+
+	public enum LocalDateTimeToAttributeValue implements Converter<LocalDateTime, AttributeValue> {
+
+		INSTANCE;
+
+		public AttributeValue convert(LocalDateTime source) {
+			return AttributeValue.builder().s(source.toString()).build();
+		}
+	}
+
+	public enum AttributeValueToDate implements Converter<AttributeValue, Date> {
+
+		INSTANCE;
+
+		public Date convert(AttributeValue source) { return Date.from(Instant.parse(source.s()));
+		}
+	}
+
+	public enum AttributeValueToLocalDate implements Converter<AttributeValue, LocalDate> {
+
+		INSTANCE;
+
+		public LocalDate convert(AttributeValue source) {
+			return LocalDate.parse(source.s());
+		}
+	}
+
+	public enum AttributeValueToLocalDateTime implements Converter<AttributeValue, LocalDateTime> {
+
+		INSTANCE;
+
+		public LocalDateTime convert(AttributeValue source) {
+			return LocalDateTime.parse(source.s());
+		}
+	}
+
+
+	public enum ZoneIdToAttributeValue implements Converter<ZoneId, AttributeValue> {
+
+		INSTANCE;
+
+		public AttributeValue convert(ZoneId source) {
+			return AttributeValue.builder().s(source.toString()).build();
+		}
+	}
+
+	public enum InstantToAttributeValue implements Converter<Instant, AttributeValue> {
+
+		INSTANCE;
+
+		public AttributeValue convert(Instant source) {
+			return AttributeValue.builder().s(source.toString()).build();
+		}
+	}
+
+	public enum AttributeValueToZoneId implements Converter<AttributeValue, ZoneId> {
+
+		INSTANCE;
+
+		public ZoneId convert(AttributeValue source) {
+			return ZoneId.of(source.s());
+		}
+	}
+
+	public enum AttributeValueToInstant implements Converter<AttributeValue, Instant> {
+
+		INSTANCE;
+
+		public Instant convert(AttributeValue source) {
+			return Instant.parse(source.s());
 		}
 	}
 

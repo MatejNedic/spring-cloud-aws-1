@@ -1,4 +1,5 @@
 import io.awspring.cloud.v3.dynamodb.core.coverter.MappingDynamoDbConverter;
+import io.awspring.cloud.v3.dynamodb.core.mapping.Column;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbMappingContext;
 import io.awspring.cloud.v3.dynamodb.core.mapping.PartitionKey;
 import io.awspring.cloud.v3.dynamodb.core.mapping.Table;
@@ -6,8 +7,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,11 +29,13 @@ public class MappingDynamoDbConverterTest {
 
 	@Test
 	void insertTestClass() {
-		TestClass testClassToBeInserted = new TestClass("testID", "Value");
+		LocalDate testDate = LocalDate.now();
+		TestClass testClassToBeInserted = new TestClass("testID", testDate, Arrays.asList("java", "Spring"));
 		Map<String, AttributeValue> mapToBeChecked = new HashMap<>();
 		mappingDynamoDbConverter.write(testClassToBeInserted, mapToBeChecked);
 		assertThat(mapToBeChecked.get("id").s()).isEqualTo("testID");
-		assertThat(mapToBeChecked.get("value").s()).isEqualTo("Value");
+		assertThat(mapToBeChecked.get("value").s()).isEqualTo(testDate.toString());
+		assertThat(mapToBeChecked.get("objects").l().size()).isEqualTo(2L);
 	}
 
 
@@ -41,14 +45,24 @@ public class MappingDynamoDbConverterTest {
 		@PartitionKey
 		private String id;
 
-		private String value;
+		private LocalDate value;
+
+		@Column("objects")
+		private List<String> stringList;
+
 
 		public TestClass() {
 		}
 
-		public TestClass(String id, String value) {
+		public TestClass(String id, LocalDate value) {
 			this.id = id;
 			this.value = value;
+		}
+
+		public TestClass(String testID, LocalDate value, List<String> asList) {
+			this.id = testID;
+			this.value = value;
+			this.stringList = asList;
 		}
 
 		public String getId() {
@@ -59,12 +73,14 @@ public class MappingDynamoDbConverterTest {
 			this.id = id;
 		}
 
-		public String getValue() {
+		public LocalDate getValue() {
 			return value;
 		}
 
-		public void setValue(String value) {
+		public void setValue(LocalDate value) {
 			this.value = value;
 		}
 	}
+
+
 }
