@@ -1,3 +1,5 @@
+package io.awspring.cloud.v3.dynamodb;
+
 import io.awspring.cloud.v3.dynamodb.core.coverter.MappingDynamoDbConverter;
 import io.awspring.cloud.v3.dynamodb.core.mapping.Column;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbMappingContext;
@@ -7,7 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -39,8 +40,8 @@ public class MappingDynamoDbConverterTest {
 	}
 
 
-	@Table
-	public class TestClass {
+	@Table("test")
+	public static class TestClass {
 
 		@PartitionKey
 		private String id;

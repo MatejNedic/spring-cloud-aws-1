@@ -33,11 +33,12 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	private @Nullable EntityCallbacks entityCallbacks;
 	private ApplicationEventPublisher eventPublisher;
 
-	public DynamoDbTemplate(DynamoDbClient dynamoDbClient, DynamoDbConverter converter, ApplicationEventPublisher eventPublisher) {
+
+
+	public DynamoDbTemplate(DynamoDbClient dynamoDbClient, DynamoDbConverter converter) {
 		this.dynamoDbClient = dynamoDbClient;
 		this.converter = converter;
 		this.entityOperations = new EntityOperations(converter.getMappingContext());
-		this.eventPublisher = eventPublisher;
 		this.statementFactory = new StatementFactory(converter);
 	}
 
@@ -64,6 +65,22 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		}
 	}
 
+	public void setDynamoDbClient(DynamoDbClient dynamoDbClient) {
+		this.dynamoDbClient = dynamoDbClient;
+	}
+
+	public void setConverter(DynamoDbConverter converter) {
+		this.converter = converter;
+	}
+
+	public void setStatementFactory(StatementFactory statementFactory) {
+		this.statementFactory = statementFactory;
+	}
+
+	public void setEventPublisher(ApplicationEventPublisher eventPublisher) {
+		this.eventPublisher = eventPublisher;
+	}
+
 	@Override
 	public <T> Iterable<T> saveAll(Iterable<T> entities, Class ent) {
 		List<WriteRequest> putRequests = new ArrayList<>();
@@ -76,6 +93,12 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		mapRequest.put(tableName, putRequests);
 		BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder().requestItems(mapRequest).build();
 		dynamoDbClient.batchWriteItem(batchWriteItemRequest);
+		return null;
+	}
+
+	@Override
+	public <T> T getEntity(Object key) {
+
 		return null;
 	}
 
@@ -97,8 +120,8 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 
 		String tableName =  getTableName(entity.getClass());
 		maybeEmitEvent(new DynamoDbBeforeSaveEvent<T>(entity, tableName));
-		dynamoDbClient.putItem(doSave(entity, tableName));
-		return null;
+		PutItemResponse putItemResponse = dynamoDbClient.putItem(doSave(entity, tableName));
+		return EntityWriteResult.of(putItemResponse.attributes(), entity);
 	}
 
 	private <T> PutItemRequest doSave(T entity, String tableName) {
@@ -118,7 +141,7 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	@Override
 	public <KEY> void delete(Object entity, KEY key) {
 		String tableName = getTableName(entity.getClass());
-		maybeEmitEvent(new DynamoDbBeforeDelete<Object>(entity, tableName));
+		maybeEmitEvent(new DynamoDbBeforeDelete<>(entity, tableName));
 		DeleteItemRequest request = statementFactory.delete(entity, getRequiredPersistentEntity(entity.getClass()), tableName);
 		dynamoDbClient.deleteItem(request);
 	}
