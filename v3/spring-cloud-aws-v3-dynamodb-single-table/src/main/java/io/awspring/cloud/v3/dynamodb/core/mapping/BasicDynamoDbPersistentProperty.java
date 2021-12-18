@@ -3,10 +3,11 @@ package io.awspring.cloud.v3.dynamodb.core.mapping;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.expression.BeanFactoryAccessor;
+import org.springframework.context.expression.BeanFactoryResolver;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.data.mapping.Association;
 import org.springframework.data.mapping.PersistentEntity;
-import org.springframework.data.mapping.PersistentPropertyAccessor;
 import org.springframework.data.mapping.model.AnnotationBasedPersistentProperty;
 import org.springframework.data.mapping.model.Property;
 import org.springframework.data.mapping.model.SimpleTypeHolder;
@@ -93,7 +94,10 @@ public class BasicDynamoDbPersistentProperty extends AnnotationBasedPersistentPr
 
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-
+		this.spelContext = new StandardEvaluationContext();
+		this.spelContext.addPropertyAccessor(new BeanFactoryAccessor());
+		this.spelContext.setBeanResolver(new BeanFactoryResolver(applicationContext));
+		this.spelContext.setRootObject(applicationContext);
 	}
 
 	NamingStrategy getNamingStrategy() {

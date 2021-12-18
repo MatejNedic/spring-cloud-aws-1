@@ -12,10 +12,10 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 
 
 	private final MappingContext<? extends BasicDynamoDbPersistenceEntity<?>, DynamoDbPersistentProperty> mappingContext;
-	private DynamoDbOperations dynamoDbOperations;
+	private final DynamoDbOperations dynamoDbOperations;
 	private final DynamoDbEntityInformation<T, KEY> entityInformation;
 
-	public SimpleDynamoDbRepository(DynamoDbEntityInformation entityInformation, DynamoDbOperations dynamoDbOperations, MappingContext<? extends BasicDynamoDbPersistenceEntity<?>, DynamoDbPersistentProperty> mappingContext) {
+	public SimpleDynamoDbRepository(DynamoDbEntityInformation<T, KEY> entityInformation, DynamoDbOperations dynamoDbOperations, MappingContext<? extends BasicDynamoDbPersistenceEntity<?>, DynamoDbPersistentProperty> mappingContext) {
 		this.entityInformation = entityInformation;
 		this.mappingContext = mappingContext;
 		this.dynamoDbOperations = dynamoDbOperations;

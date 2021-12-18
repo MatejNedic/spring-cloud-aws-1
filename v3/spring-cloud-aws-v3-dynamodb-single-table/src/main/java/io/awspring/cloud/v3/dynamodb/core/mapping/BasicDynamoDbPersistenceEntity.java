@@ -25,8 +25,7 @@ public class BasicDynamoDbPersistenceEntity<T> extends BasicPersistentEntity<T, 
 
 	private static final DynamoDbPersistentEntityMetadataVerifier DEFAULT_VERIFIER = new CompositeDynamoDbPersistentEntityMetadataVerifier();
 
-	private @Nullable
-	StandardEvaluationContext spelContext;
+	private @Nullable StandardEvaluationContext spelContext;
 	private DynamoDbPersistentEntityMetadataVerifier verifier = DEFAULT_VERIFIER;
 	public String tableName;
 	private NamingStrategy namingStrategy = NamingStrategy.INSTANCE;

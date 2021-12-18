@@ -101,11 +101,9 @@ public class DynamoDbEntityClassScanner {
 			return classes;
 		}
 
-		//set static as well
 		ClassPathScanningCandidateComponentProvider componentProvider = new ClassPathScanningCandidateComponentProvider(
 			false);
 
-		//set static
 		for (Class<? extends Annotation> annotation : getEntityAnnotations()) {
 			componentProvider.addIncludeFilter(new AnnotationTypeFilter(annotation));
 		}
