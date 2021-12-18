@@ -78,4 +78,26 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 	}
 
 
+	@Test
+	void insertThenDelete() {
+		LocalDate testDate = LocalDate.now();
+		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate, Arrays.asList("java", "Spring"));
+
+		dynamoDbTemplate.save(testClassToBeInserted);
+
+		Map keyToFetch = new HashMap();
+		keyToFetch.put("id", AttributeValue.builder().s("testID").build());
+		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
+
+		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
+		Assert.assertEquals(LocalDate.parse(attributeValueHashMap.get("value").s()), testClassToBeInserted.getValue());
+		Assert.assertEquals(attributeValueHashMap.get("objects").l().size(), 2L);
+
+		dynamoDbTemplate.delete(testClassToBeInserted, "testId");
+
+		attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
+		Assert.assertEquals(attributeValueHashMap.size(), 0L);
+	}
+
+
 }
