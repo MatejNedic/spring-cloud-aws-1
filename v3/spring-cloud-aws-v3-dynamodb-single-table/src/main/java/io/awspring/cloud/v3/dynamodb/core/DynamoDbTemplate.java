@@ -12,6 +12,7 @@ import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.data.mapping.callback.EntityCallbacks;
 import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
@@ -65,22 +66,6 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		}
 	}
 
-	public void setDynamoDbClient(DynamoDbClient dynamoDbClient) {
-		this.dynamoDbClient = dynamoDbClient;
-	}
-
-	public void setConverter(DynamoDbConverter converter) {
-		this.converter = converter;
-	}
-
-	public void setStatementFactory(StatementFactory statementFactory) {
-		this.statementFactory = statementFactory;
-	}
-
-	public void setEventPublisher(ApplicationEventPublisher eventPublisher) {
-		this.eventPublisher = eventPublisher;
-	}
-
 	@Override
 	public <T> Iterable<T> saveAll(Iterable<T> entities, Class ent) {
 		List<WriteRequest> putRequests = new ArrayList<>();
@@ -97,10 +82,19 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	}
 
 	@Override
-	public <T> T getEntity(Object key) {
+	public <T> T getEntityByKey(Object id, Class<T> entityClass) {
 
-		return null;
+		Assert.notNull(id, "Id must not be null");
+		Assert.notNull(entityClass, "Entity type must not be null");
+
+		DynamoDbPersistenceEntity<?> entity = getRequiredPersistentEntity(entityClass);
+		String tableName = getTableName(entityClass);
+		GetItemRequest getItemRequest = statementFactory.findByKey(id, tableName, entity);
+		GetItemResponse getItemResponse = dynamoDbClient.getItem(getItemRequest);
+		return converter.read(entityClass, getItemResponse.item());
 	}
+
+
 
 	private <T> PutRequest doSaveAll(T entity, String tableName) {
 		EntityOperations.AdaptibleEntity<T> source = getEntityOperations().forEntity(entity, getConverter().getConversionService());
@@ -117,8 +111,7 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 
 	@Override
 	public <T> EntityWriteResult<T> save(T entity) {
-
-		String tableName =  getTableName(entity.getClass());
+		String tableName = getTableName(entity.getClass());
 		maybeEmitEvent(new DynamoDbBeforeSaveEvent<T>(entity, tableName));
 		PutItemResponse putItemResponse = dynamoDbClient.putItem(doSave(entity, tableName));
 		return EntityWriteResult.of(putItemResponse.attributes(), entity);
@@ -126,16 +119,13 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 
 	private <T> PutItemRequest doSave(T entity, String tableName) {
 		EntityOperations.AdaptibleEntity<T> source = getEntityOperations().forEntity(entity, getConverter().getConversionService());
-		T entityToUse = source.isVersionedEntity() ? source.initializeVersionProperty() : entity;
-		return doSaveUnVersioned(entityToUse, tableName, source);
-	}
-
-	private <T> PutItemRequest doSaveUnVersioned(T entityToUse, String tableName, EntityOperations.AdaptibleEntity<T> source) {
+		T entityToUse = source.initializeVersionProperty();
 		T entityToSave = maybeCallBeforeSave(entityToUse, tableName);
 		PutItemRequest request = statementFactory.insert(entityToSave, source.getPersistentEntity(), tableName);
 		maybeEmitEvent(new DynamoDbAfterSaveEvent<>(entityToSave, tableName));
 		return request;
 	}
+
 
 
 	@Override

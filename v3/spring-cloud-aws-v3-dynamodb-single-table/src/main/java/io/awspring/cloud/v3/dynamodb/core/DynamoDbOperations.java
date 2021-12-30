@@ -12,6 +12,6 @@ public interface DynamoDbOperations {
 	DynamoDbConverter getConverter();
 	<T> T update(T entity);
 	<T> Iterable<T> saveAll(Iterable<T> entities, Class ent);
-	<T> T getEntity(Object key);
+	<T> T getEntityByKey(Object id, Class<T> entityClass);
 
 }

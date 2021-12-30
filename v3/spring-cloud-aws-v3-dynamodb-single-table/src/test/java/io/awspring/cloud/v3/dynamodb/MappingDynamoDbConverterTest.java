@@ -31,12 +31,11 @@ public class MappingDynamoDbConverterTest {
 	@Test
 	void insertTestClass() {
 		LocalDate testDate = LocalDate.now();
-		TestClass testClassToBeInserted = new TestClass("testID", testDate, Arrays.asList("java", "Spring"));
+		TestClass testClassToBeInserted = new TestClass("testID", testDate);
 		Map<String, AttributeValue> mapToBeChecked = new HashMap<>();
 		mappingDynamoDbConverter.write(testClassToBeInserted, mapToBeChecked);
 		assertThat(mapToBeChecked.get("id").s()).isEqualTo("testID");
 		assertThat(mapToBeChecked.get("value").s()).isEqualTo(testDate.toString());
-		assertThat(mapToBeChecked.get("objects").l().size()).isEqualTo(2L);
 	}
 
 
@@ -48,10 +47,6 @@ public class MappingDynamoDbConverterTest {
 
 		private LocalDate value;
 
-		@Column("objects")
-		private List<String> stringList;
-
-
 		public TestClass() {
 		}
 
@@ -60,11 +55,6 @@ public class MappingDynamoDbConverterTest {
 			this.value = value;
 		}
 
-		public TestClass(String testID, LocalDate value, List<String> asList) {
-			this.id = testID;
-			this.value = value;
-			this.stringList = asList;
-		}
 
 		public String getId() {
 			return id;

@@ -49,7 +49,7 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 	@Test
 	void insertShouldInsertEntity() {
 		LocalDate testDate = LocalDate.now();
-		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate, Arrays.asList("java", "Spring"));
+		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate);
 
 		dynamoDbTemplate.save(testClassToBeInserted);
 
@@ -59,12 +59,11 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 
 		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
 		Assert.assertEquals(LocalDate.parse(attributeValueHashMap.get("value").s()), testClassToBeInserted.getValue());
-		Assert.assertEquals(attributeValueHashMap.get("objects").l().size(), 2L);
 	}
 
 	@Test
 	void insertShouldInsertEntityNullFields() {
-		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("anotherId", null, Arrays.asList("java", "Spring"));
+		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("anotherId", null);
 
 		dynamoDbTemplate.save(testClassToBeInserted);
 
@@ -74,14 +73,13 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 
 		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
 		Assert.assertTrue(attributeValueHashMap.get("value").nul());
-		Assert.assertEquals(attributeValueHashMap.get("objects").l().size(), 2L);
 	}
 
 
 	@Test
 	void insertThenDelete() {
 		LocalDate testDate = LocalDate.now();
-		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate, Arrays.asList("java", "Spring"));
+		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate);
 
 		dynamoDbTemplate.save(testClassToBeInserted);
 
@@ -91,12 +89,31 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 
 		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
 		Assert.assertEquals(LocalDate.parse(attributeValueHashMap.get("value").s()), testClassToBeInserted.getValue());
-		Assert.assertEquals(attributeValueHashMap.get("objects").l().size(), 2L);
 
 		dynamoDbTemplate.delete(testClassToBeInserted, "testId");
 
 		attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
 		Assert.assertEquals(attributeValueHashMap.size(), 0L);
+	}
+
+
+	@Test
+	void insertThenGet() {
+		LocalDate testDate = LocalDate.now();
+		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate);
+
+		dynamoDbTemplate.save(testClassToBeInserted);
+
+		Map keyToFetch = new HashMap();
+		keyToFetch.put("id", AttributeValue.builder().s("testID").build());
+		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
+
+		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
+		Assert.assertEquals(LocalDate.parse(attributeValueHashMap.get("value").s()), testClassToBeInserted.getValue());
+		MappingDynamoDbConverterTest.TestClass readClass = dynamoDbTemplate.getEntityByKey(testClassToBeInserted.getId(), MappingDynamoDbConverterTest.TestClass.class);
+
+		Assert.assertEquals(readClass.getId(), testClassToBeInserted.getId());
+		Assert.assertEquals(readClass.getValue(), testClassToBeInserted.getValue());
 	}
 
 

@@ -1,39 +1,25 @@
 package io.awspring.cloud.v3.dynamodb.core.coverter;
 
-import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbMappingContext;
-import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
-import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistentProperty;
-import io.awspring.cloud.v3.dynamodb.core.mapping.PartitionKey;
+import io.awspring.cloud.v3.dynamodb.core.mapping.*;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.support.DefaultConversionService;
-import org.springframework.data.convert.CustomConversions;
 import org.springframework.data.mapping.MappingException;
-import org.springframework.data.mapping.PersistentProperty;
 import org.springframework.data.mapping.PersistentPropertyAccessor;
 import org.springframework.data.mapping.PreferredConstructor;
 import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.data.mapping.model.ConvertingPropertyAccessor;
 import org.springframework.data.mapping.model.EntityInstantiator;
 import org.springframework.data.mapping.model.ParameterValueProvider;
-import org.springframework.data.util.ClassTypeInformation;
-import org.springframework.data.util.TypeInformation;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
-import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implements ApplicationContextAware, BeanClassLoaderAware {
 	private @Nullable ClassLoader beanClassLoader;
@@ -86,6 +72,17 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 		DynamoDbPersistentProperty persistentProperty = persistenceEntity.getPersistentProperty(PartitionKey.class);
 		ConvertingPropertyAccessor convertingPropertyAccessor = newConvertingPropertyAccessor(objectToDelete, persistenceEntity);
 		keys.put(persistentProperty.getColumnName(), toAttributeValue(convertingPropertyAccessor.getProperty(persistentProperty)));
+
+		Iterable<DynamoDbPersistentProperty> persistentProperties = persistenceEntity.getPersistentProperties(RangeKey.class);
+		persistentProperties.forEach( rangeProperty -> {
+			keys.put(rangeProperty.getColumnName(), toAttributeValue(convertingPropertyAccessor.getProperty(rangeProperty)));
+		});
+	}
+
+	@Override
+	public void findByKey(Object key, Map<String, AttributeValue> keys, DynamoDbPersistenceEntity<?> persistenceEntity) {
+		DynamoDbPersistentProperty persistentProperty = persistenceEntity.getPersistentProperty(PartitionKey.class);
+		keys.put(persistentProperty.getColumnName(), toAttributeValue(key));
 	}
 
 	@Nullable
@@ -111,7 +108,7 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 			propertyAccessor.setProperty(property, getConversionService().convert(source.get(property.getColumnName()), property.getType()));
 
 		}
-		return null;
+		return instance;
 	}
 
 	private <S> ConvertingPropertyAccessor<S> newConvertingPropertyAccessor(S source,

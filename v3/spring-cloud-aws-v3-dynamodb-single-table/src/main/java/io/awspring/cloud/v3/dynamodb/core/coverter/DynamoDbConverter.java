@@ -21,4 +21,6 @@ public interface DynamoDbConverter extends EntityConverter<DynamoDbPersistenceEn
     void write(Object objectToInsert, Map<String, AttributeValue> items, DynamoDbPersistenceEntity<?> persistentEntity);
 
 	void delete(Object objectToDelete, Map<String, AttributeValue> object, DynamoDbPersistenceEntity<?> persistenceEntity);
+
+	public abstract void findByKey(Object key, Map<String, AttributeValue> keys, DynamoDbPersistenceEntity<?> persistenceEntity);
 }
