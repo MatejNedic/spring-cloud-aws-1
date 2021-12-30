@@ -3,14 +3,12 @@ package io.awspring.cloud.v3.dynamodb.core;
 import io.awspring.cloud.v3.dynamodb.core.coverter.DynamoDbConverter;
 import io.awspring.cloud.v3.dynamodb.core.mapping.events.*;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
-import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistentProperty;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.data.mapping.callback.EntityCallbacks;
-import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -141,8 +139,12 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		return this.converter;
 	}
 
-	public <T> T update(T entity) {
-		return null;
+	public <T> EntityWriteResult<T> update(T entity) {
+		String tableName = getTableName(entity.getClass());
+		DynamoDbPersistenceEntity dynamoDbPersistenceEntity = getRequiredPersistentEntity(entity.getClass());
+		UpdateItemRequest updateItemRequest = statementFactory.update(entity, tableName, dynamoDbPersistenceEntity);
+		UpdateItemResponse updateItemResponse = dynamoDbClient.updateItem(updateItemRequest);
+		return EntityWriteResult.of(updateItemResponse.attributes(), entity);
 	}
 
 	private <T> Object maybeCallBeforeConvert(T entity, String tableName) {

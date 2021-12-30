@@ -29,7 +29,7 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 		if (persistentEntity != null && persistentEntity.hasVersionProperty()) {
 
 			if (!entityInformation.isNew(entity)) {
-				return this.dynamoDbOperations.update(entity);
+				return this.dynamoDbOperations.update(entity).getEntity();
 			}
 		}
 

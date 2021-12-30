@@ -10,8 +10,8 @@ public interface DynamoDbOperations {
 	<T> EntityWriteResult<T> save(T entity);
 	<KEY> void delete(Object entity,KEY key);
 	DynamoDbConverter getConverter();
-	<T> T update(T entity);
 	<T> Iterable<T> saveAll(Iterable<T> entities, Class ent);
 	<T> T getEntityByKey(Object id, Class<T> entityClass);
+	<T> EntityWriteResult<T> update(T entity);
 
 }

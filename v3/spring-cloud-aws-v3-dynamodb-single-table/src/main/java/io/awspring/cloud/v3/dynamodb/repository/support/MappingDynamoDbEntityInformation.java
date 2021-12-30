@@ -22,12 +22,7 @@ public class MappingDynamoDbEntityInformation<T, ID> extends PersistentEntityInf
 
 	@Override
 	public String getIdAttribute() {
-		return null;
-	}
-
-	@Override
-	public ID getRequiredId(T entity) throws IllegalArgumentException {
-		return null;
+		return this.entityMetadata.getRequiredIdProperty().getName();
 	}
 
 	@Override

@@ -18,6 +18,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValueUpdate;
 
 import java.util.*;
 
@@ -69,20 +70,24 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 
 	@Override
 	public void delete(Object objectToDelete, Map<String, AttributeValue> keys, DynamoDbPersistenceEntity<?> persistenceEntity) {
-		DynamoDbPersistentProperty persistentProperty = persistenceEntity.getPersistentProperty(PartitionKey.class);
-		ConvertingPropertyAccessor convertingPropertyAccessor = newConvertingPropertyAccessor(objectToDelete, persistenceEntity);
-		keys.put(persistentProperty.getColumnName(), toAttributeValue(convertingPropertyAccessor.getProperty(persistentProperty)));
-
-		Iterable<DynamoDbPersistentProperty> persistentProperties = persistenceEntity.getPersistentProperties(RangeKey.class);
-		persistentProperties.forEach( rangeProperty -> {
-			keys.put(rangeProperty.getColumnName(), toAttributeValue(convertingPropertyAccessor.getProperty(rangeProperty)));
-		});
+		fetchKeysAndPopulate(objectToDelete, keys, persistenceEntity);
 	}
 
 	@Override
 	public void findByKey(Object key, Map<String, AttributeValue> keys, DynamoDbPersistenceEntity<?> persistenceEntity) {
 		DynamoDbPersistentProperty persistentProperty = persistenceEntity.getPersistentProperty(PartitionKey.class);
 		keys.put(persistentProperty.getColumnName(), toAttributeValue(key));
+	}
+
+	@Override
+	public void update(Object objectToUpdate, Map<String, AttributeValue> keys, DynamoDbPersistenceEntity<?> entity, Map<String, AttributeValueUpdate> attributeUpdates) {
+		fetchKeysAndPopulate(objectToUpdate, keys, entity);
+		for (DynamoDbPersistentProperty property : entity) {
+			if (!property.isIdProperty() &&! property.isRangeKey()) {
+				attributeUpdates.put(property.getColumnName(), AttributeValueUpdate.builder().value(toAttributeValue(newConvertingPropertyAccessor(objectToUpdate, entity).getProperty(property))).build());
+			}
+			}
+
 	}
 
 	@Nullable
@@ -132,6 +137,17 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 		write(source, sink, entity);
 	}
 
+	private void fetchKeysAndPopulate(Object toBeUsed, Map<String, AttributeValue> keys, DynamoDbPersistenceEntity<?> entity) {
+		DynamoDbPersistentProperty persistentProperty = entity.getPersistentProperty(PartitionKey.class);
+		ConvertingPropertyAccessor convertingPropertyAccessor = newConvertingPropertyAccessor(toBeUsed, entity);
+		keys.put(persistentProperty.getColumnName(), toAttributeValue(convertingPropertyAccessor.getProperty(persistentProperty)));
+
+		Iterable<DynamoDbPersistentProperty> persistentProperties = entity.getPersistentProperties(RangeKey.class);
+		persistentProperties.forEach( rangeProperty -> {
+			keys.put(rangeProperty.getColumnName(), toAttributeValue(convertingPropertyAccessor.getProperty(rangeProperty)));
+		});
+	}
+
 	@Override
 	public Object convertToDynamoDbType(Object obj, DynamoDbPersistenceEntity<?> entity) {
 		Map<String, AttributeValue> attributeValueMap = new HashMap<>();
@@ -158,6 +174,7 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 			return entity;
 		}
 	}
+
 
 
 	public AttributeValue toAttributeValue(Object value) {

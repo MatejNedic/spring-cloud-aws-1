@@ -103,18 +103,34 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate);
 
 		dynamoDbTemplate.save(testClassToBeInserted);
-
-		Map keyToFetch = new HashMap();
-		keyToFetch.put("id", AttributeValue.builder().s("testID").build());
-		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
-
-		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
-		Assert.assertEquals(LocalDate.parse(attributeValueHashMap.get("value").s()), testClassToBeInserted.getValue());
 		MappingDynamoDbConverterTest.TestClass readClass = dynamoDbTemplate.getEntityByKey(testClassToBeInserted.getId(), MappingDynamoDbConverterTest.TestClass.class);
 
 		Assert.assertEquals(readClass.getId(), testClassToBeInserted.getId());
 		Assert.assertEquals(readClass.getValue(), testClassToBeInserted.getValue());
 	}
+
+
+
+	@Test
+	void insertUpdateThenGet() {
+		LocalDate testDate = LocalDate.now();
+		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate);
+
+		dynamoDbTemplate.save(testClassToBeInserted);
+
+		LocalDate newDate = testDate.plusDays(1);
+		testClassToBeInserted.setValue(newDate);
+		dynamoDbTemplate.update(testClassToBeInserted);
+
+		Map keyToFetch = new HashMap();
+		keyToFetch.put("id", AttributeValue.builder().s("testID").build());
+		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
+
+
+		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
+		Assert.assertEquals(LocalDate.parse(attributeValueHashMap.get("value").s()), newDate);
+	}
+
 
 
 }

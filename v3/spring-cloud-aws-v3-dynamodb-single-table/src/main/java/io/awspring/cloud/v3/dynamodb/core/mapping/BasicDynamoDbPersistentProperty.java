@@ -33,7 +33,8 @@ public class BasicDynamoDbPersistentProperty extends AnnotationBasedPersistentPr
 
 	private String columnName;
 
-	private @Nullable StandardEvaluationContext spelContext;
+	private @Nullable
+	StandardEvaluationContext spelContext;
 
 
 	public BasicDynamoDbPersistentProperty(Property property, PersistentEntity<?, DynamoDbPersistentProperty> owner, SimpleTypeHolder simpleTypeHolder) {
@@ -126,6 +127,13 @@ public class BasicDynamoDbPersistentProperty extends AnnotationBasedPersistentPr
 				Optional.ofNullable(getGetter()).map(Method::getAnnotatedReturnType),
 				Optional.ofNullable(getSetter()).map(it -> it.getParameters()[0].getAnnotatedType()))
 			.filter(it -> hasAnnotation(it, annotationType, getTypeInformation())).findFirst().orElse(null);
+	}
+
+	@Override
+	public boolean isRangeKey() {
+		RangeKey annotation = findAnnotation(RangeKey.class);
+
+		return annotation != null;
 	}
 
 	private static boolean hasAnnotation(AnnotatedType type, Class<? extends Annotation> annotationType,

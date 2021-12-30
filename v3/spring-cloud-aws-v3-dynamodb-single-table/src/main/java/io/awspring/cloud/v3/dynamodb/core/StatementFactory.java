@@ -81,5 +81,18 @@ public class StatementFactory {
 			.key(keys).build();
 	}
 
+	UpdateItemRequest update(Object objectToUpdate, String tableName, DynamoDbPersistenceEntity<?> entity) {
+		Assert.notNull(tableName, "TableName must not be null");
+		Assert.notNull(objectToUpdate, "ObjectToUpdate must not be null");
+		Assert.notNull(entity, "DynamoDbPersistenceEntity must not be null");
+
+
+		Map<String, AttributeValue> keys = new LinkedHashMap<>();
+		Map<String, AttributeValueUpdate> attributeUpdates = new LinkedHashMap<>();
+		dynamoDbConverter.update(objectToUpdate, keys, entity, attributeUpdates);
+		return UpdateItemRequest.builder().tableName(tableName).attributeUpdates(attributeUpdates).key(keys)
+			.key(keys).build();
+	}
+
 
 }
