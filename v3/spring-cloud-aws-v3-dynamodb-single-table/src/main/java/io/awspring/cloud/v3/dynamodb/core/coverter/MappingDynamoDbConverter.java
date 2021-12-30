@@ -19,6 +19,9 @@ import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.data.mapping.model.ConvertingPropertyAccessor;
 import org.springframework.data.mapping.model.EntityInstantiator;
 import org.springframework.data.mapping.model.ParameterValueProvider;
+import org.springframework.data.mapping.model.SpELContext;
+import org.springframework.data.projection.ProjectionFactory;
+import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 import org.springframework.data.util.ClassTypeInformation;
 import org.springframework.data.util.TypeInformation;
 import org.springframework.lang.Nullable;
@@ -39,11 +42,14 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 	private @Nullable ClassLoader beanClassLoader;
 
 	private final DynamoDbMappingContext mappingContext;
+	private SpELContext spELContext;
+	private final SpelAwareProxyProjectionFactory projectionFactory = new SpelAwareProxyProjectionFactory();
 
 
 	public MappingDynamoDbConverter(DynamoDbMappingContext mappingContext) {
 		super(newConversionService());
 		DynamoDbConversions conversions = new DynamoDbConversions(Collections.emptyList());
+		//this.spELContext = new SpELContext(AttributeValuePropertyAccessor.INSTANCE);
 		this.mappingContext = mappingContext;
 		this.setCustomConversions(conversions);
 	}
@@ -77,7 +83,8 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 		}
 
 		for (DynamoDbPersistentProperty property : persistentEntity) {
-			writeInternal(newConvertingPropertyAccessor(obj, persistentEntity), property, items);
+			ConvertingPropertyAccessor<?> convertingPropertyAccessor = newConvertingPropertyAccessor(obj, persistentEntity);
+			items.put(property.getColumnName(), toAttributeValue(convertingPropertyAccessor.getProperty(property)));
 		}
 	}
 
@@ -86,11 +93,6 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 		DynamoDbPersistentProperty persistentProperty = persistenceEntity.getPersistentProperty(PartitionKey.class);
 		ConvertingPropertyAccessor convertingPropertyAccessor = newConvertingPropertyAccessor(objectToDelete, persistenceEntity);
 		keys.put(persistentProperty.getColumnName(), toAttributeValue(convertingPropertyAccessor.getProperty(persistentProperty)));
-	}
-
-	@Nullable
-	private void writeInternal(ConvertingPropertyAccessor<?> convertingPropertyAccessor, DynamoDbPersistentProperty property, Map<String, AttributeValue> attributeValueMap) {
-		attributeValueMap.put(property.getColumnName(), toAttributeValue(convertingPropertyAccessor.getProperty(property)));
 	}
 
 	@Override
@@ -147,10 +149,15 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 		return this.mappingContext;
 	}
 
+	@Override
+	public ProjectionFactory getProjectionFactory() {
+		return projectionFactory;
+	}
 
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-
+		this.spELContext = new SpELContext(this.spELContext, applicationContext);
+		this.projectionFactory.setBeanFactory(applicationContext);
 	}
 
 	private <T> Class<T> transformClassToBeanClassLoaderClass(Class<T> entity) {
@@ -198,6 +205,7 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 	@Override
 	public void setBeanClassLoader(ClassLoader classLoader) {
 		this.beanClassLoader = classLoader;
+		this.projectionFactory.setBeanClassLoader(classLoader);
 	}
 
 	enum NoOpParameterValueProvider implements ParameterValueProvider<DynamoDbPersistentProperty> {

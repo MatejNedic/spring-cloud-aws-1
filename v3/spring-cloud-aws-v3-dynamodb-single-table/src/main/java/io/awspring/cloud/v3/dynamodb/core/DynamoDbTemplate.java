@@ -3,14 +3,12 @@ package io.awspring.cloud.v3.dynamodb.core;
 import io.awspring.cloud.v3.dynamodb.core.coverter.DynamoDbConverter;
 import io.awspring.cloud.v3.dynamodb.core.mapping.events.*;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
-import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistentProperty;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.data.mapping.callback.EntityCallbacks;
-import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.lang.Nullable;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
@@ -117,7 +115,6 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 
 	@Override
 	public <T> EntityWriteResult<T> save(T entity) {
-
 		String tableName =  getTableName(entity.getClass());
 		maybeEmitEvent(new DynamoDbBeforeSaveEvent<T>(entity, tableName));
 		PutItemResponse putItemResponse = dynamoDbClient.putItem(doSave(entity, tableName));
@@ -145,6 +142,8 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		DeleteItemRequest request = statementFactory.delete(entity, getRequiredPersistentEntity(entity.getClass()), tableName);
 		dynamoDbClient.deleteItem(request);
 	}
+
+
 
 	@Override
 	public DynamoDbConverter getConverter() {

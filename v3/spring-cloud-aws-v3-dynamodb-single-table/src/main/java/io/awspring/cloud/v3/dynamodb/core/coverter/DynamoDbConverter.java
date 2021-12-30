@@ -5,6 +5,7 @@ import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistentProperty;
 import org.springframework.data.convert.CustomConversions;
 import org.springframework.data.convert.EntityConverter;
 import org.springframework.data.convert.EntityReader;
+import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.lang.Nullable;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
@@ -14,6 +15,8 @@ public interface DynamoDbConverter extends EntityConverter<DynamoDbPersistenceEn
 	DynamoDbWriter<Object>, EntityReader<Object, Map<String, AttributeValue>> {
 
 	CustomConversions getCustomConversions();
+
+	ProjectionFactory getProjectionFactory();
 
 	@Nullable
 	Object getId(Object object, DynamoDbPersistenceEntity<?> entity);
