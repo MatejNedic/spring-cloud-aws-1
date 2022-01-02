@@ -13,8 +13,6 @@ public class CachingDynamoDbPersistentProperty extends BasicDynamoDbPersistentPr
 		isPartitionKeyColumn = super.isPartitionKeyColumn();
 	}
 
-
-
 	@Override
 	public boolean isPartitionKeyColumn() {
 		return isPartitionKeyColumn;

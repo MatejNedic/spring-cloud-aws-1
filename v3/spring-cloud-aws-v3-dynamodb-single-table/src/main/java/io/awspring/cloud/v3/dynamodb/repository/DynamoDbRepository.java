@@ -96,4 +96,5 @@ public interface DynamoDbRepository<T, KEY> {
 	 */
 	void deleteAll();
 
+	<S extends T> S update(S entity);
 }

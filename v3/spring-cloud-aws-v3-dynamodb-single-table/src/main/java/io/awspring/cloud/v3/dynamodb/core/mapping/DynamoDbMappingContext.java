@@ -22,8 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DynamoDbMappingContext extends AbstractMappingContext<BasicDynamoDbPersistenceEntity<?>, DynamoDbPersistentProperty>
 	implements ApplicationContextAware, BeanClassLoaderAware {
 
-	private @Nullable
-	ApplicationContext applicationContext;
+	private @Nullable ApplicationContext applicationContext;
 
 	private @Nullable ClassLoader beanClassLoader;
 

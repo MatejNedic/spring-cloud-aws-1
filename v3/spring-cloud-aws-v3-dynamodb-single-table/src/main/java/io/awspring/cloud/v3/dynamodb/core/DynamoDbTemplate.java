@@ -77,7 +77,7 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder().requestItems(mapRequest).build();
 		dynamoDbClient.batchWriteItem(batchWriteItemRequest);
 		maybeEmitEvent(new DynamoDbAfterSaveEvent<>(entities, tableName));
-		return null;
+		return entities;
 	}
 
 	@Override

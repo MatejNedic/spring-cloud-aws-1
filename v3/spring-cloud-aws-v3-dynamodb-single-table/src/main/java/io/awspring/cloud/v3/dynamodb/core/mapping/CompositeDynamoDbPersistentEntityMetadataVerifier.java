@@ -15,11 +15,9 @@ public class CompositeDynamoDbPersistentEntityMetadataVerifier implements Dynamo
 	 * verifiers.
 	 *
 	 * @see BasicDynamoDbPersistentEntityMetadataVerifier
-	 * @see PartitionKeyClassEntityMetadataVerifier
 	 */
 	public CompositeDynamoDbPersistentEntityMetadataVerifier() {
-		this(Arrays.asList(new PartitionKeyClassEntityMetadataVerifier(),
-			new BasicDynamoDbPersistentEntityMetadataVerifier()));
+		this(Arrays.asList(new BasicDynamoDbPersistentEntityMetadataVerifier()));
 	}
 
 	/**

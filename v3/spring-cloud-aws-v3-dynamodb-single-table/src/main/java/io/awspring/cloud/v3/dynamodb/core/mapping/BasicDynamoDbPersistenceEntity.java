@@ -86,11 +86,6 @@ public class BasicDynamoDbPersistenceEntity<T> extends BasicPersistentEntity<T, 
 	}
 
 	@Override
-	public Boolean isUserDefined() {
-		return false;
-	}
-
-	@Override
 	public void setApplicationContext(ApplicationContext context) throws BeansException {
 		Assert.notNull(context, "ApplicationContext must not be null");
 

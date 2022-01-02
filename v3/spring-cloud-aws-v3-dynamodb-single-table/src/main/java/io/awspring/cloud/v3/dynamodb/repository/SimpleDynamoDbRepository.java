@@ -23,16 +23,7 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 
 	@Override
 	public <S extends T> S save(S entity) {
-
 		BasicDynamoDbPersistenceEntity<?> persistentEntity = this.mappingContext.getPersistentEntity(entity.getClass());
-
-		if (persistentEntity != null && persistentEntity.hasVersionProperty()) {
-
-			if (!entityInformation.isNew(entity)) {
-				return this.dynamoDbOperations.update(entity).getEntity();
-			}
-		}
-
 		return this.dynamoDbOperations.save(entity).getEntity();
 	}
 
@@ -43,7 +34,7 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 
 	@Override
 	public Optional<T> findByPartitionKey(KEY key) {
-		return Optional.empty();
+		return Optional.of(dynamoDbOperations.getEntityByKey(key,this.entityInformation.getJavaType()));
 	}
 
 	@Override
@@ -60,6 +51,7 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 	public Iterable<T> findAllByKeys(Iterable<Object> keys) {
 		return null;
 	}
+
 	@Override
 	public long count() {
 		return 0;
@@ -72,7 +64,7 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 
 	@Override
 	public void delete(T entity) {
-
+		dynamoDbOperations.delete(entityInformation.getJavaType(), entityInformation.getIdAttribute());
 	}
 
 	@Override
@@ -84,4 +76,10 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 	public void deleteAll() {
 
 	}
+
+	@Override
+	public <S extends T> S update(S entity) {
+		return dynamoDbOperations.update(entity).getEntity();
+	}
+
 }
