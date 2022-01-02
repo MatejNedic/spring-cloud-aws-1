@@ -76,6 +76,7 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		mapRequest.put(tableName, putRequests);
 		BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder().requestItems(mapRequest).build();
 		dynamoDbClient.batchWriteItem(batchWriteItemRequest);
+		maybeEmitEvent(new DynamoDbAfterSaveEvent<>(entities, tableName));
 		return null;
 	}
 
@@ -109,19 +110,19 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 
 	@Override
 	public <T> EntityWriteResult<T> save(T entity) {
-		String tableName = getTableName(entity.getClass());
+		String tableName =  getTableName(entity.getClass());
 		maybeEmitEvent(new DynamoDbBeforeSaveEvent<T>(entity, tableName));
-		PutItemResponse putItemResponse = dynamoDbClient.putItem(doSave(entity, tableName));
-		return EntityWriteResult.of(putItemResponse.attributes(), entity);
+		return EntityWriteResult.of(doSave(entity, tableName).attributes(), entity);
 	}
 
-	private <T> PutItemRequest doSave(T entity, String tableName) {
+	private <T> PutItemResponse doSave(T entity, String tableName) {
 		EntityOperations.AdaptibleEntity<T> source = getEntityOperations().forEntity(entity, getConverter().getConversionService());
 		T entityToUse = source.initializeVersionProperty();
 		T entityToSave = maybeCallBeforeSave(entityToUse, tableName);
 		PutItemRequest request = statementFactory.insert(entityToSave, source.getPersistentEntity(), tableName);
+		PutItemResponse putItemResponse = dynamoDbClient.putItem(request);
 		maybeEmitEvent(new DynamoDbAfterSaveEvent<>(entityToSave, tableName));
-		return request;
+		return putItemResponse;
 	}
 
 
@@ -129,9 +130,10 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	@Override
 	public <KEY> void delete(Object entity, KEY key) {
 		String tableName = getTableName(entity.getClass());
-		maybeEmitEvent(new DynamoDbBeforeDelete<>(entity, tableName));
+		maybeEmitEvent(new DynamoDbBeforeDeleteEvent<>(entity, tableName));
 		DeleteItemRequest request = statementFactory.delete(entity, getRequiredPersistentEntity(entity.getClass()), tableName);
 		dynamoDbClient.deleteItem(request);
+		maybeEmitEvent(new DynamoDbAfterDeleteEvent<>(entity, tableName));
 	}
 
 	@Override
@@ -143,13 +145,12 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		String tableName = getTableName(entity.getClass());
 		DynamoDbPersistenceEntity dynamoDbPersistenceEntity = getRequiredPersistentEntity(entity.getClass());
 		UpdateItemRequest updateItemRequest = statementFactory.update(entity, tableName, dynamoDbPersistenceEntity);
+		maybeEmitEvent(new DynamoDbBeforeUpdateEvent<>(entity, tableName));
 		UpdateItemResponse updateItemResponse = dynamoDbClient.updateItem(updateItemRequest);
+		maybeEmitEvent(new DynamoDbAfterUpdateEvent<>(entity, tableName));
 		return EntityWriteResult.of(updateItemResponse.attributes(), entity);
 	}
 
-	private <T> Object maybeCallBeforeConvert(T entity, String tableName) {
-		return null;
-	}
 
 	public String getTableName(Class<?> entityClass) {
 		return getEntityOperations().getTableName(entityClass);
