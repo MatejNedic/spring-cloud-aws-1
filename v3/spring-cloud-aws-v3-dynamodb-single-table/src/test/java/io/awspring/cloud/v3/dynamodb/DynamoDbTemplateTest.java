@@ -26,7 +26,7 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 	private DynamoDbClient dynamoDbClient;
 	private MappingDynamoDbConverter mappingDynamoDbConverter;
 
-	{
+	{	
 		DynamoDbMappingContext mappingContext = new DynamoDbMappingContext();
 		mappingDynamoDbConverter = new MappingDynamoDbConverter(mappingContext);
 		mappingDynamoDbConverter.afterPropertiesSet();

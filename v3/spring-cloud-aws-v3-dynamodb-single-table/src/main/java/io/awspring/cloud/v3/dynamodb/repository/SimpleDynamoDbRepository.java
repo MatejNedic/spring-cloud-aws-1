@@ -37,25 +37,6 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 		return Optional.of(dynamoDbOperations.getEntityByKey(key,this.entityInformation.getJavaType()));
 	}
 
-	@Override
-	public boolean existsByKEY(KEY key) {
-		return false;
-	}
-
-	@Override
-	public Iterable<T> findAll() {
-		return null;
-	}
-
-	@Override
-	public Iterable<T> findAllByKeys(Iterable<Object> keys) {
-		return null;
-	}
-
-	@Override
-	public long count() {
-		return 0;
-	}
 
 	@Override
 	public void deleteByKey(KEY key) {
@@ -69,11 +50,6 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 
 	@Override
 	public void deleteAll(Iterable<? extends T> entities) {
-
-	}
-
-	@Override
-	public void deleteAll() {
 
 	}
 

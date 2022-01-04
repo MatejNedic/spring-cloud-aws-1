@@ -28,44 +28,6 @@ public interface DynamoDbRepository<T, KEY> {
 	 * @throws IllegalArgumentException if {@literal KEY} is {@literal null}.
 	 */
 	Optional<T> findByPartitionKey(KEY key);
-
-	/**
-	 * Returns whether an entity with the given KEY exists.
-	 *
-	 * @param key must not be {@literal null}.
-	 * @return {@literal true} if an entity with the given KEY exists, {@literal false} otherwise.
-	 * @throws IllegalArgumentException if {@literal KEY} is {@literal null}.
-	 */
-	boolean existsByKEY(KEY key);
-
-	/**
-	 * Returns all instances of the type.
-	 *
-	 * @return all entities
-	 */
-	Iterable<T> findAll();
-
-	/**
-	 * Returns all instances of the type {@code T} with the given KEYs.
-	 * <p>
-	 * If some or all KEYs are not found, no entities are returned for these KEYs.
-	 * <p>
-	 * Note that the order of elements in the result is not guaranteed.
-	 *
-	 * @param keys must not be {@literal null} nor contain any {@literal null} values.
-	 * @return guaranteed to be not {@literal null}. The size can be equal or less than the number of given
-	 *         {@literal KEYs}.
-	 * @throws IllegalArgumentException in case the given {@link Iterable Keys (Objects Sor and Partition)} or one of its items is {@literal null}.
-	 */
-	Iterable<T> findAllByKeys(Iterable<Object> keys);
-
-	/**
-	 * Returns the number of entities available.
-	 *
-	 * @return the number of entities.
-	 */
-	long count();
-
 	/**
 	 * Deletes the entity with the given primaryKey.
 	 *
@@ -91,10 +53,6 @@ public interface DynamoDbRepository<T, KEY> {
 	 */
 	void deleteAll(Iterable<? extends T> entities);
 
-	/**
-	 * Deletes all entities managed by the repository.
-	 */
-	void deleteAll();
 
 	<S extends T> S update(S entity);
 }
