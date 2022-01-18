@@ -4,9 +4,9 @@ import io.awspring.cloud.v3.dynamodb.core.DynamoDbOperations;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistentProperty;
 import io.awspring.cloud.v3.dynamodb.repository.query.CachingExpressionParser;
+import io.awspring.cloud.v3.dynamodb.repository.query.DynamoDbQueryMethod;
 import io.awspring.cloud.v3.dynamodb.repository.query.StringBasedDynamoDbQuery;
 import io.awspring.cloud.v3.dynamodb.repository.support.DynamoDbEntityInformation;
-import io.awspring.cloud.v3.dynamodb.repository.query.DynamoDbQueryMethod;
 import io.awspring.cloud.v3.dynamodb.repository.support.MappingDynamoDbEntityInformation;
 import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.data.projection.ProjectionFactory;
@@ -30,7 +30,7 @@ public class DynamoDbRepositoryFactory extends RepositoryFactorySupport {
 
 	private final DynamoDbOperations operations;
 
-	public DynamoDbRepositoryFactory( DynamoDbOperations operations) {
+	public DynamoDbRepositoryFactory(DynamoDbOperations operations) {
 		this.operations = operations;
 		this.mappingContext = operations.getConverter().getMappingContext();
 	}
@@ -53,7 +53,7 @@ public class DynamoDbRepositoryFactory extends RepositoryFactorySupport {
 		return SimpleDynamoDbRepository.class;
 	}
 
-	public static class DynamoDbQueryLookUpStrategy  implements QueryLookupStrategy {
+	public static class DynamoDbQueryLookUpStrategy implements QueryLookupStrategy {
 		private final QueryMethodEvaluationContextProvider evaluationContextProvider;
 
 		private final MappingContext<? extends DynamoDbPersistenceEntity<?>, DynamoDbPersistentProperty> mappingContext;
@@ -63,8 +63,8 @@ public class DynamoDbRepositoryFactory extends RepositoryFactorySupport {
 		private final ExpressionParser expressionParser = new CachingExpressionParser(EXPRESSION_PARSER);
 
 		DynamoDbQueryLookUpStrategy(DynamoDbOperations operations,
-									 QueryMethodEvaluationContextProvider evaluationContextProvider,
-									 MappingContext<? extends DynamoDbPersistenceEntity<?>, DynamoDbPersistentProperty> mappingContext) {
+									QueryMethodEvaluationContextProvider evaluationContextProvider,
+									MappingContext<? extends DynamoDbPersistenceEntity<?>, DynamoDbPersistentProperty> mappingContext) {
 
 			this.operations = operations;
 			this.evaluationContextProvider = evaluationContextProvider;
@@ -85,12 +85,9 @@ public class DynamoDbRepositoryFactory extends RepositoryFactorySupport {
 				String namedQuery = namedQueries.getQuery(namedQueryName);
 				return new StringBasedDynamoDbQuery(namedQuery, queryMethod, operations, expressionParser,
 					evaluationContextProvider);
-			} else (queryMethod.hasAnnotatedQuery()) {
-				return new StringBasedCassandraQuery(queryMethod, operations, expressionParser, evaluationContextProvider);
 			} else {
-				return new PartTreeCassandraQuery(queryMethod, operations);
+				return new StringBasedDynamoDbQuery(queryMethod, operations, expressionParser, evaluationContextProvider);
 			}
 		}
-	}
 	}
 }

@@ -2,6 +2,8 @@ package io.awspring.cloud.v3.dynamodb.core;
 
 import io.awspring.cloud.v3.dynamodb.core.coverter.DynamoDbConverter;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
+import io.awspring.cloud.v3.dynamodb.core.query.Query;
+import io.awspring.cloud.v3.dynamodb.repository.query.QueryOptions;
 import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 import org.springframework.util.Assert;
@@ -72,4 +74,7 @@ public class StatementFactory {
 	}
 
 
+	public String execute(Query query, DynamoDbPersistenceEntity<?> persistentEntity) {
+		return null;
+	}
 }

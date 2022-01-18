@@ -5,9 +5,7 @@ import org.springframework.util.Assert;
 
 public class SimpleDynamoDbEntityMetadata<T> implements DynamoDbEntityMetadata<T> {
 	private final DynamoDbPersistenceEntity<?> entity;
-
 	private final Class<T> type;
-
 
 	public SimpleDynamoDbEntityMetadata(Class<T> type, DynamoDbPersistenceEntity<?> entity) {
 
@@ -18,17 +16,11 @@ public class SimpleDynamoDbEntityMetadata<T> implements DynamoDbEntityMetadata<T
 		this.entity = entity;
 	}
 
-	/* (non-Javadoc)
-	 * @see org.springframework.data.cassandra.repository.query.CassandraEntityMetadata#getTableName()
-	 */
 	@Override
 	public String getTableName() {
 		return entity.getTableName();
 	}
 
-	/* (non-Javadoc)
-	 * @see org.springframework.data.repository.core.EntityMetadata#getJavaType()
-	 */
 	@Override
 	public Class<T> getJavaType() {
 		return type;

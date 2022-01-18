@@ -138,14 +138,16 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 	}
 
 	@Override
-	public Object convertToDynamoDbType(Object obj, DynamoDbPersistenceEntity<?> entity) {
-		Map<String, AttributeValue> attributeValueMap = new HashMap<>();
-		write(obj, attributeValueMap ,entity);
-		return attributeValueMap;
+	public Object convertToDynamoDbType(Object obj, TypeInformation<?> typeInformation) {
+
+		if (obj == null) {
+			return null;
+		}
+		return toAttributeValue(obj);
 	}
 
 	@Override
-	public MappingContext<? extends DynamoDbPersistenceEntity<?>, DynamoDbPersistentProperty> getMappingContext() {
+	public DynamoDbMappingContext getMappingContext() {
 		return this.mappingContext;
 	}
 

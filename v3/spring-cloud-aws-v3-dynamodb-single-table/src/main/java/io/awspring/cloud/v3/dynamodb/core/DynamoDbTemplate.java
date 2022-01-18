@@ -100,6 +100,11 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		return null;
 	}
 
+	@Override
+	public Object execute(String statement) {
+		return null;
+	}
+
 	private <T> PutRequest doSaveAll(T entity, String tableName) {
 		EntityOperations.AdaptibleEntity<T> source = getEntityOperations().forEntity(entity, getConverter().getConversionService());
 		T entityToUse = source.isVersionedEntity() ? source.initializeVersionProperty() : entity;

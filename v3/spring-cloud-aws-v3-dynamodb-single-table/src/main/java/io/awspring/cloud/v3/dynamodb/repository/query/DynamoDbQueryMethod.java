@@ -5,7 +5,6 @@ import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistentProperty;
 import io.awspring.cloud.v3.dynamodb.repository.support.DynamoDbEntityMetadata;
 import io.awspring.cloud.v3.dynamodb.repository.support.SimpleDynamoDbEntityMetadata;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.repository.core.RepositoryMetadata;
@@ -29,8 +28,7 @@ public class DynamoDbQueryMethod extends QueryMethod {
 	private final Optional<Query> query;
 
 
-	private @Nullable
-	DynamoDbEntityMetadata<?> entityMetadata;
+	private @Nullable DynamoDbEntityMetadata<?> entityMetadata;
 
 	public DynamoDbQueryMethod(Method method, RepositoryMetadata repositoryMetadata, ProjectionFactory projectionFactory,
 							   MappingContext<? extends DynamoDbPersistenceEntity<?>, ? extends DynamoDbPersistentProperty> mappingContext) {
@@ -39,19 +37,11 @@ public class DynamoDbQueryMethod extends QueryMethod {
 
 		Assert.notNull(mappingContext, "MappingContext must not be null");
 
-		verify(method, repositoryMetadata);
-
 		this.method = method;
 		this.mappingContext = mappingContext;
 		this.query = Optional.ofNullable(AnnotatedElementUtils.findMergedAnnotation(method, Query.class));
 	}
 
-	public void verify(Method method, RepositoryMetadata metadata) {
-
-		if (isPageQuery()) {
-			throw new InvalidDataAccessApiUsageException("Page queries are not supported. Use a Slice query.");
-		}
-	}
 
 	@Override
 	@SuppressWarnings("unchecked")
@@ -71,6 +61,7 @@ public class DynamoDbQueryMethod extends QueryMethod {
 				DynamoDbPersistenceEntity<?> returnedEntity = this.mappingContext.getPersistentEntity(returnedObjectType);
 				DynamoDbPersistenceEntity<?> managedEntity = this.mappingContext.getRequiredPersistentEntity(domainClass);
 
+				//Projection interface
 				returnedEntity = returnedEntity == null || returnedEntity.getType().isInterface() ? managedEntity
 					: returnedEntity;
 

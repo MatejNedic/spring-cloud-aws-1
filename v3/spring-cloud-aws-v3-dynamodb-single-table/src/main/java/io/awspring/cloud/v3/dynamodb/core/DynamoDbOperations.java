@@ -14,4 +14,5 @@ public interface DynamoDbOperations {
 	<T> Iterable<T> saveAll(Iterable<T> entities, Class ent);
 	<T> T getEntity(Object key);
 
+	Object execute(String statement);
 }

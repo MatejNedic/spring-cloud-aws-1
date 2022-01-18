@@ -103,12 +103,6 @@ public class QueryOptions {
 		return result;
 	}
 
-	/**
-	 * Builder for {@link QueryOptions}.
-	 *
-	 * @author Mark Paluch
-	 * @since 1.5
-	 */
 	public static class QueryOptionsBuilder {
 
 

@@ -72,7 +72,6 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 
 	@Override
 	public void delete(T entity) {
-
 	}
 
 	@Override

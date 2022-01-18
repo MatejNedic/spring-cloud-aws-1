@@ -1,5 +1,6 @@
 package io.awspring.cloud.v3.dynamodb.core.coverter;
 
+import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbMappingContext;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistentProperty;
 import org.springframework.data.convert.CustomConversions;
@@ -17,6 +18,8 @@ public interface DynamoDbConverter extends EntityConverter<DynamoDbPersistenceEn
 	CustomConversions getCustomConversions();
 
 	ProjectionFactory getProjectionFactory();
+	@Override
+	DynamoDbMappingContext getMappingContext();
 
 	@Nullable
 	Object getId(Object object, DynamoDbPersistenceEntity<?> entity);
