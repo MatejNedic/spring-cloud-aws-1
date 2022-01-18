@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2020 the original author or authors.
+ * Copyright 2013-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.awspring.cloud.v3.autoconfigure.parameterstore;
+package io.awspring.cloud.v3.autoconfigure.secretsmanager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,10 +23,9 @@ import java.util.List;
 
 import io.awspring.cloud.v3.core.SpringCloudClientConfiguration;
 import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.ssm.SsmClient;
-import software.amazon.awssdk.services.ssm.SsmClientBuilder;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClientBuilder;
 
 import org.springframework.boot.BootstrapContext;
 import org.springframework.boot.BootstrapRegistry;
@@ -41,55 +40,63 @@ import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.util.StringUtils;
 
 /**
+ * Resolves config data locations in AWS Secrets Manager.
+ *
  * @author Eddú Meléndez
+ * @author Maciej Walkowiak
+ * @author Arun Patra
  * @since 2.3.0
  */
-public class ParameterStoreConfigDataLocationResolver
-		implements ConfigDataLocationResolver<ParameterStoreConfigDataResource> {
+public class SecretsManagerConfigDataLocationResolver
+		implements ConfigDataLocationResolver<SecretsManagerConfigDataResource> {
+
+	private final Log log;
 
 	/**
-	 * AWS ParameterStore Config Data prefix.
+	 * AWS Secrets Manager Config Data prefix.
 	 */
-	public static final String PREFIX = "aws-parameterstore:";
+	public static final String PREFIX = "aws-secretsmanager:";
 
-	private final Log log = LogFactory.getLog(ParameterStoreConfigDataLocationResolver.class);
+	public SecretsManagerConfigDataLocationResolver(Log log) {
+		this.log = log;
+	}
 
 	@Override
 	public boolean isResolvable(ConfigDataLocationResolverContext context, ConfigDataLocation location) {
 		if (!location.hasPrefix(PREFIX)) {
 			return false;
 		}
-		return context.getBinder().bind(ParameterStoreProperties.CONFIG_PREFIX + ".enabled", Boolean.class)
+		return context.getBinder().bind(SecretsManagerProperties.CONFIG_PREFIX + ".enabled", Boolean.class)
 				.orElse(true);
 	}
 
 	@Override
-	public List<ParameterStoreConfigDataResource> resolve(ConfigDataLocationResolverContext context,
+	public List<SecretsManagerConfigDataResource> resolve(ConfigDataLocationResolverContext context,
 			ConfigDataLocation location) throws ConfigDataLocationNotFoundException {
 		return Collections.emptyList();
 	}
 
 	@Override
-	public List<ParameterStoreConfigDataResource> resolveProfileSpecific(
+	public List<SecretsManagerConfigDataResource> resolveProfileSpecific(
 			ConfigDataLocationResolverContext resolverContext, ConfigDataLocation location, Profiles profiles)
 			throws ConfigDataLocationNotFoundException {
-		registerBean(resolverContext, ParameterStoreProperties.class, loadProperties(resolverContext.getBinder()));
+		registerBean(resolverContext, SecretsManagerProperties.class, loadProperties(resolverContext.getBinder()));
 
-		registerAndPromoteBean(resolverContext, SsmClient.class, this::createSimpleSystemManagementClient);
+		registerAndPromoteBean(resolverContext, SecretsManagerClient.class, this::createAwsSecretsManagerClient);
 
-		ParameterStorePropertySources sources = new ParameterStorePropertySources(log);
+		SecretsManagerPropertySources propertySources = new SecretsManagerPropertySources(log);
 
 		List<String> contexts = getCustomContexts(location.getNonPrefixedValue(PREFIX));
 
-		List<ParameterStoreConfigDataResource> locations = new ArrayList<>();
-		contexts.forEach(propertySourceContext -> locations
-				.add(new ParameterStoreConfigDataResource(propertySourceContext, location.isOptional(), sources)));
+		List<SecretsManagerConfigDataResource> locations = new ArrayList<>();
+		contexts.forEach(propertySourceContext -> locations.add(
+				new SecretsManagerConfigDataResource(propertySourceContext, location.isOptional(), propertySources)));
 
 		return locations;
 	}
 
 	private List<String> getCustomContexts(String keys) {
-		if (StringUtils.hasLength(keys)) {
+		if (!StringUtils.isEmpty(keys)) {
 			return Arrays.asList(keys.split(";"));
 		}
 		return Collections.emptyList();
@@ -115,22 +122,25 @@ public class ParameterStoreConfigDataLocationResolver
 		bootstrapContext.registerIfAbsent(type, supplier);
 	}
 
-	protected SsmClient createSimpleSystemManagementClient(BootstrapContext context) {
-		ParameterStoreProperties properties = context.get(ParameterStoreProperties.class);
-		SsmClientBuilder builder = SsmClient.builder()
+	protected SecretsManagerClient createAwsSecretsManagerClient(BootstrapContext context) {
+		SecretsManagerProperties properties = context.get(SecretsManagerProperties.class);
+
+		SecretsManagerClientBuilder builder = SecretsManagerClient.builder()
 				.overrideConfiguration(SpringCloudClientConfiguration.clientOverrideConfiguration());
+
 		if (StringUtils.hasLength(properties.getRegion())) {
 			builder.region(Region.of(properties.getRegion()));
 		}
 		if (properties.getEndpoint() != null) {
 			builder.endpointOverride(properties.getEndpoint());
 		}
+
 		return builder.build();
 	}
 
-	protected ParameterStoreProperties loadProperties(Binder binder) {
-		return binder.bind(ParameterStoreProperties.CONFIG_PREFIX, Bindable.of(ParameterStoreProperties.class))
-				.orElseGet(ParameterStoreProperties::new);
+	protected SecretsManagerProperties loadProperties(Binder binder) {
+		return binder.bind(SecretsManagerProperties.CONFIG_PREFIX, Bindable.of(SecretsManagerProperties.class))
+				.orElseGet(SecretsManagerProperties::new);
 	}
 
 }

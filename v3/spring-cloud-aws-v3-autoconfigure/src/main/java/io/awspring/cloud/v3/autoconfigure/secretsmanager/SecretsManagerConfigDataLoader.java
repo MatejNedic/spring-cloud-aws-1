@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2020 the original author or authors.
+ * Copyright 2013-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package io.awspring.cloud.v3.autoconfigure.parameterstore;
+package io.awspring.cloud.v3.autoconfigure.secretsmanager;
 
 import java.util.Collections;
 
-import io.awspring.cloud.v3.paramstore.ParameterStorePropertySource;
-import software.amazon.awssdk.services.ssm.SsmClient;
+import io.awspring.cloud.v3.secretsmanager.SecretsManagerPropertySource;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 import org.springframework.boot.context.config.ConfigData;
 import org.springframework.boot.context.config.ConfigDataLoader;
@@ -27,17 +27,21 @@ import org.springframework.boot.context.config.ConfigDataLoaderContext;
 import org.springframework.boot.context.config.ConfigDataResourceNotFoundException;
 
 /**
+ * Loads config data from AWS Secret Manager.
+ *
  * @author Eddú Meléndez
+ * @author Maciej Walkowiak
+ * @author Arun Patra
  * @since 2.3.0
  */
-public class ParameterStoreConfigDataLoader implements ConfigDataLoader<ParameterStoreConfigDataResource> {
+public class SecretsManagerConfigDataLoader implements ConfigDataLoader<SecretsManagerConfigDataResource> {
 
 	@Override
-	public ConfigData load(ConfigDataLoaderContext context, ParameterStoreConfigDataResource resource) {
+	public ConfigData load(ConfigDataLoaderContext context, SecretsManagerConfigDataResource resource) {
 		try {
-			SsmClient ssm = context.getBootstrapContext().get(SsmClient.class);
-			ParameterStorePropertySource propertySource = resource.getPropertySources()
-					.createPropertySource(resource.getContext(), resource.isOptional(), ssm);
+			SecretsManagerClient sm = context.getBootstrapContext().get(SecretsManagerClient.class);
+			SecretsManagerPropertySource propertySource = resource.getPropertySources()
+					.createPropertySource(resource.getContext(), resource.isOptional(), sm);
 			if (propertySource != null) {
 				return new ConfigData(Collections.singletonList(propertySource));
 			}
