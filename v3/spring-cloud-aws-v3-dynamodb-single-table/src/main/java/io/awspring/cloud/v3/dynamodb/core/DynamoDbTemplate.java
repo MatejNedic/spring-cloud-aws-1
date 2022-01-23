@@ -117,8 +117,7 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 
 	private <T> PutItemResponse doSave(T entity, String tableName) {
 		EntityOperations.AdaptibleEntity<T> source = getEntityOperations().forEntity(entity, getConverter().getConversionService());
-		T entityToUse = source.initializeVersionProperty();
-		T entityToSave = maybeCallBeforeSave(entityToUse, tableName);
+		T entityToSave = maybeCallBeforeSave(entity, tableName);
 		PutItemRequest request = statementFactory.insert(entityToSave, source.getPersistentEntity(), tableName);
 		PutItemResponse putItemResponse = dynamoDbClient.putItem(request);
 		maybeEmitEvent(new DynamoDbAfterSaveEvent<>(entityToSave, tableName));

@@ -142,22 +142,6 @@ public class BasicDynamoDbPersistentProperty extends AnnotationBasedPersistentPr
 		if (AnnotatedElementUtils.hasAnnotation(type, annotationType)) {
 			return true;
 		}
-
-		if (type instanceof AnnotatedParameterizedType) {
-
-			AnnotatedParameterizedType parameterizedType = (AnnotatedParameterizedType) type;
-			AnnotatedType[] arguments = parameterizedType.getAnnotatedActualTypeArguments();
-
-			if (typeInformation.isCollectionLike() && arguments.length == 1) {
-				return AnnotatedElementUtils.hasAnnotation(arguments[0], annotationType);
-			}
-
-			if (typeInformation.isMap() && arguments.length == 2) {
-				return AnnotatedElementUtils.hasAnnotation(arguments[0], annotationType)
-					|| AnnotatedElementUtils.hasAnnotation(arguments[1], annotationType);
-			}
-		}
-
 		return false;
 	}
 }

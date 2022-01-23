@@ -23,13 +23,13 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 
 	@Override
 	public <S extends T> S save(S entity) {
-		BasicDynamoDbPersistenceEntity<?> persistentEntity = this.mappingContext.getPersistentEntity(entity.getClass());
+		//BasicDynamoDbPersistenceEntity<?> persistentEntity = this.mappingContext.getPersistentEntity(entity.getClass());
 		return this.dynamoDbOperations.save(entity).getEntity();
 	}
 
 	@Override
 	public <S extends T> Iterable<S> saveAll(Iterable<S> entities) {
-		return (Iterable<S>) dynamoDbOperations.saveAll(entities, entityInformation.getJavaType());
+		return dynamoDbOperations.saveAll(entities, entityInformation.getJavaType());
 	}
 
 	@Override

@@ -21,9 +21,6 @@
 		<module>spring-cloud-aws-v3-parameter-store</module>
 		<module>spring-cloud-aws-v3-secrets-manager</module>
 		<module>spring-cloud-aws-v3-ses</module>
-        <module>spring-cloud-starter-aws-v3-parameter-store</module>
-		<module>spring-cloud-starter-aws-v3-secrets-manager</module>
-		<module>spring-cloud-starter-aws-v3-ses</module>
 		<module>spring-cloud-aws-v3-dynamodb-single-table</module>
     </modules>
 

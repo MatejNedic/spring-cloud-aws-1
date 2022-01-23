@@ -1,13 +1,12 @@
 package io.awspring.cloud.v3.dynamodb.core.coverter;
 
-import org.springframework.core.convert.converter.GenericConverter;
 import org.springframework.data.convert.CustomConversions;
-import org.springframework.data.convert.JodaTimeConverters;
-import org.springframework.data.convert.Jsr310Converters;
 import org.springframework.data.mapping.model.SimpleTypeHolder;
 
-import java.util.*;
-import java.util.function.Predicate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 public class DynamoDbConversions extends CustomConversions {
 

@@ -42,7 +42,7 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 
 		KeySchemaElement idKey = KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build();
 		AttributeDefinition id = AttributeDefinition.builder().attributeName("id").attributeType(ScalarAttributeType.S).build();
-		CreateTableRequest createTableRequest = CreateTableRequest.builder().tableName("test").attributeDefinitions(id).keySchema(idKey).provisionedThroughput(ProvisionedThroughput.builder().readCapacityUnits(1L).writeCapacityUnits(1L).build()).build();
+		CreateTableRequest createTableRequest = CreateTableRequest.builder().tableName("test").attributeDefinitions(id).keySchema(idKey).provisionedThroughput(ProvisionedThroughput.builder().readCapacityUnits(10L).writeCapacityUnits(10L).build()).build();
 		dynamoDbClient.createTable(createTableRequest);
 	}
 

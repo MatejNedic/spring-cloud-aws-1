@@ -68,6 +68,11 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 		}
 	}
 
+	@Nullable
+	private void writeInternal(ConvertingPropertyAccessor<?> convertingPropertyAccessor, DynamoDbPersistentProperty property, Map<String, AttributeValue> attributeValueMap) {
+		attributeValueMap.put(property.getColumnName(), toAttributeValue(convertingPropertyAccessor.getProperty(property)));
+	}
+
 	@Override
 	public void delete(Object objectToDelete, Map<String, AttributeValue> keys, DynamoDbPersistenceEntity<?> persistenceEntity) {
 		fetchKeysAndPopulate(objectToDelete, keys, persistenceEntity);
@@ -88,11 +93,6 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 			}
 			}
 
-	}
-
-	@Nullable
-	private void writeInternal(ConvertingPropertyAccessor<?> convertingPropertyAccessor, DynamoDbPersistentProperty property, Map<String, AttributeValue> attributeValueMap) {
-		attributeValueMap.put(property.getColumnName(), toAttributeValue(convertingPropertyAccessor.getProperty(property)));
 	}
 
 	@Override
