@@ -1,6 +1,7 @@
 package io.awspring.cloud.v3.dynamodb.repository.query;
 
 import io.awspring.cloud.v3.dynamodb.core.DynamoDbOperations;
+import io.awspring.cloud.v3.dynamodb.repository.DefaultSpELExpressionEvaluator;
 import org.springframework.data.repository.query.QueryMethodEvaluationContextProvider;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;

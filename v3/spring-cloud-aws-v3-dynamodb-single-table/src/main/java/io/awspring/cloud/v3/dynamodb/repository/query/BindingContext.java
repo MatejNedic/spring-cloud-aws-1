@@ -1,0 +1,144 @@
+package io.awspring.cloud.v3.dynamodb.repository.query;
+
+import org.springframework.data.mapping.model.SpELExpressionEvaluator;
+import org.springframework.data.repository.query.Parameter;
+import org.springframework.data.repository.query.ParameterAccessor;
+import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class BindingContext {
+
+	private final DynamoDbParameters parameters;
+
+	private final ParameterAccessor parameterAccessor;
+
+	private final List<ParameterBinding> bindings;
+
+	private final SpELExpressionEvaluator evaluator;
+
+	public BindingContext(DynamoDbParameters parameters, ParameterAccessor parameterAccessor,
+						  List<ParameterBinding> bindings, SpELExpressionEvaluator evaluator) {
+
+		this.parameters = parameters;
+		this.parameterAccessor = parameterAccessor;
+		this.bindings = bindings;
+		this.evaluator = evaluator;
+	}
+
+	private boolean hasBindings() {
+		return !bindings.isEmpty();
+	}
+
+	/**
+	 * Bind values provided by {@link DynamoDbParameterAccessor} to placeholders in {@link BindingContext} while
+	 * considering potential conversions and parameter types.
+	 *
+	 * @return {@literal null} if given {@code raw} value is empty.
+	 */
+	public List<Object> getBindingValues() {
+
+		if (!hasBindings()) {
+			return Collections.emptyList();
+		}
+
+		List<Object> parameters = new ArrayList<>(bindings.size());
+
+		for (ParameterBinding binding : bindings) {
+			Object parameterValueForBinding = getParameterValueForBinding(binding);
+			parameters.add(parameterValueForBinding);
+		}
+
+		return parameters;
+	}
+
+	/**
+	 * Return the value to be used for the given {@link ParameterBinding}.
+	 *
+	 * @param binding must not be {@literal null}.
+	 * @return the value used for the given {@link ParameterBinding}.
+	 */
+	@Nullable
+	private Object getParameterValueForBinding(ParameterBinding binding) {
+
+		if (binding.isExpression()) {
+			return evaluator.evaluate(binding.getRequiredExpression());
+		}
+
+		return binding.isNamed()
+			? parameterAccessor.getBindableValue(getParameterIndex(parameters, binding.getRequiredParameterName()))
+			: parameterAccessor.getBindableValue(binding.getParameterIndex());
+	}
+
+	private int getParameterIndex(DynamoDbParameters parameters, String parameterName) {
+
+		return parameters.stream() //
+			.filter(cassandraParameter -> cassandraParameter //
+				.getName().filter(s -> s.equals(parameterName)) //
+				.isPresent()) //
+			.mapToInt(Parameter::getIndex) //
+			.findFirst() //
+			.orElseThrow(() -> new IllegalArgumentException(
+				String.format("Invalid parameter name; Cannot resolve parameter [%s]", parameterName)));
+	}
+
+	static class ParameterBinding {
+
+		private final int parameterIndex;
+		private final @Nullable
+		String expression;
+		private final @Nullable
+		String parameterName;
+
+		private ParameterBinding(int parameterIndex, @Nullable String expression, @Nullable String parameterName) {
+
+			this.parameterIndex = parameterIndex;
+			this.expression = expression;
+			this.parameterName = parameterName;
+		}
+
+		static ParameterBinding expression(String expression, boolean quoted) {
+			return new ParameterBinding(-1, expression, null);
+		}
+
+		static ParameterBinding indexed(int parameterIndex) {
+			return new ParameterBinding(parameterIndex, null, null);
+		}
+
+		static ParameterBinding named(String name) {
+			return new ParameterBinding(-1, null, name);
+		}
+
+		boolean isNamed() {
+			return (parameterName != null);
+		}
+
+		int getParameterIndex() {
+			return parameterIndex;
+		}
+
+		String getParameter() {
+			return ("?" + (isExpression() ? "expr" : "") + parameterIndex);
+		}
+
+		String getRequiredExpression() {
+
+			Assert.state(expression != null, "ParameterBinding is not an expression");
+			return expression;
+		}
+
+		boolean isExpression() {
+			return (this.expression != null);
+		}
+
+		String getRequiredParameterName() {
+
+			Assert.state(parameterName != null, "ParameterBinding is not named");
+
+			return parameterName;
+		}
+	}
+}

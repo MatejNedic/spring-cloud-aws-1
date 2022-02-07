@@ -7,11 +7,14 @@ import io.awspring.cloud.v3.dynamodb.core.query.Query;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.data.mapping.context.MappingContext;
+import org.springframework.data.mapping.model.SpELExpressionEvaluator;
+import org.springframework.data.repository.query.QueryCreationException;
 import org.springframework.data.repository.query.ResultProcessor;
 import org.springframework.data.repository.query.ReturnedType;
 import org.springframework.data.repository.query.parser.PartTree;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
+import java.util.Optional;
 import java.util.function.Function;
 
 public class QueryStatementCreator {
@@ -45,8 +48,18 @@ public class QueryStatementCreator {
 
 			return statement;
 		};
+		return null;
+	}
 
-		return doWithQuery(parameterAccessor, tree, function);
+	String select(StringBasedQuery stringBasedQuery, DynamoDbParameterAccessor parameterAccessor,
+						   SpELExpressionEvaluator evaluator) {
+
+		try {
+			String boundQuery = stringBasedQuery.bindQuery(parameterAccessor, evaluator);
+			return boundQuery;
+		} catch (RuntimeException cause) {
+			throw QueryCreationException.create(this.queryMethod, cause);
+		}
 	}
 
 }

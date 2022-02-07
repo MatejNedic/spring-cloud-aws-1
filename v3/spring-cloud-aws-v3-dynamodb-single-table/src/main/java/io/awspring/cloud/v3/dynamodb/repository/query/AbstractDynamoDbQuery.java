@@ -58,7 +58,7 @@ public abstract class AbstractDynamoDbQuery extends DynamoDbRepositoryQuerySuppo
 	}
 
 	private DynamoDbQueryExecution getExecutionToWrap(DynamoDbParameterAccessor parameterAccessor) {
-		return new DynamoDbQueryExecution.ResultSetQuery(getOperations());
+		return new DynamoDbQueryExecution.AttributeValueReturnQuery(getOperations());
 
 	}
 

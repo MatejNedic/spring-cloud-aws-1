@@ -1,7 +1,6 @@
 package io.awspring.cloud.v3.dynamodb.repository.query;
 
 import io.awspring.cloud.v3.dynamodb.core.DynamoDbOperations;
-import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.Nullable;
 
 @FunctionalInterface
@@ -10,11 +9,11 @@ public interface DynamoDbQueryExecution {
 	Object execute(String statement, Class<?> type);
 
 
-	final class ResultSetQuery implements DynamoDbQueryExecution {
+	final class AttributeValueReturnQuery implements DynamoDbQueryExecution {
 
 		private final DynamoDbOperations operations;
 
-		ResultSetQuery(DynamoDbOperations operations) {
+		AttributeValueReturnQuery(DynamoDbOperations operations) {
 			this.operations = operations;
 		}
 

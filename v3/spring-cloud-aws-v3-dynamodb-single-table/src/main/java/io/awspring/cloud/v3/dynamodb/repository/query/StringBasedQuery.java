@@ -1,28 +1,29 @@
 package io.awspring.cloud.v3.dynamodb.repository.query;
 
-import io.awspring.cloud.v3.dynamodb.core.DynamoDbOperations;
 import org.springframework.data.mapping.model.SpELExpressionEvaluator;
-import org.springframework.data.repository.query.QueryMethodEvaluationContextProvider;
 import org.springframework.data.spel.ExpressionDependencies;
 import org.springframework.expression.ExpressionParser;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class StringBasedQuery {
 
+	private final String query;
 	private final DynamoDbParameters parameters;
 
 	private final ExpressionParser expressionParser;
 
 	private final ExpressionQuery expressionQuery;
+	private final List<BindingContext.ParameterBinding> queryParameterBindings = new ArrayList<>();
 
 	private final ExpressionDependencies expressionDependencies;
 
 	public StringBasedQuery(String query, DynamoDbParameters parameters, ExpressionParser expressionParser) {
-
+		this.query = query;
 		this.parameters = parameters;
 		this.expressionParser = expressionParser;
 		this.expressionQuery = ExpressionQuery.create(query);
@@ -48,63 +49,54 @@ public class StringBasedQuery {
 		return expressionDependencies;
 	}
 
-	public String bindQuery(DynamoDbParameter parameterAccessor, SpELExpressionEvaluator evaluator) {
-		return getSpelEvaluator(accessor).map(evaluator -> new ExpandedQuery(accessor, evaluator));
+	public String bindQuery(DynamoDbParameterAccessor parameterAccessor, SpELExpressionEvaluator evaluator) {
+		Assert.notNull(parameterAccessor, "DynamoDbParameterAccessor must not be null");
+		Assert.notNull(evaluator, "SpELExpressionEvaluator must not be null");
+
+		BindingContext bindingContext = new BindingContext(this.parameters, parameterAccessor, this.queryParameterBindings,
+			evaluator);
+
+		List<Object> arguments = bindingContext.getBindingValues();
+		return ParameterBinder.INSTANCE.bind(this., arguments);
 	}
 
 
-	static class ParameterBinding {
+	enum ParameterBinder {
+		INSTANCE;
 
-		private final int parameterIndex;
-		private final @Nullable String expression;
-		private final @Nullable String parameterName;
+		private static final String ARGUMENT_PLACEHOLDER = "?_param_?";
+		private static final Pattern ARGUMENT_PLACEHOLDER_PATTERN = Pattern.compile(Pattern.quote(ARGUMENT_PLACEHOLDER));
 
-		private ParameterBinding(int parameterIndex, @Nullable String expression, @Nullable String parameterName) {
+		public String bind(String input, List<Object> parameters) {
 
-			this.parameterIndex = parameterIndex;
-			this.expression = expression;
-			this.parameterName = parameterName;
-		}
+			if (parameters.isEmpty()) {
+				return input;
+			}
 
-		static ParameterBinding expression(String expression, boolean quoted) {
-			return new ParameterBinding(-1, expression, null);
-		}
+			StringBuilder result = new StringBuilder();
 
-		static ParameterBinding indexed(int parameterIndex) {
-			return new ParameterBinding(parameterIndex, null, null);
-		}
+			int startIndex = 0;
+			int currentPosition = 0;
+			int parameterIndex = 0;
 
-		static ParameterBinding named(String name) {
-			return new ParameterBinding(-1, null, name);
-		}
+			Matcher matcher = ARGUMENT_PLACEHOLDER_PATTERN.matcher(input);
 
-		boolean isNamed() {
-			return (parameterName != null);
-		}
+			while (currentPosition < input.length()) {
 
-		int getParameterIndex() {
-			return parameterIndex;
-		}
+				if (!matcher.find()) {
+					break;
+				}
 
-		String getParameter() {
-			return ("?" + (isExpression() ? "expr" : "") + parameterIndex);
-		}
+				int exprStart = matcher.start();
 
-		String getRequiredExpression() {
+				result.append(input.subSequence(startIndex, exprStart)).append("?");
 
-			Assert.state(expression != null, "ParameterBinding is not an expression");
-			return expression;
-		}
+				parameterIndex++;
+				currentPosition = matcher.end();
+				startIndex = currentPosition;
+			}
 
-		boolean isExpression() {
-			return (this.expression != null);
-		}
-
-		String getRequiredParameterName() {
-
-			Assert.state(parameterName != null, "ParameterBinding is not named");
-
-			return parameterName;
+			return result.append(input.subSequence(currentPosition, input.length())).toString();
 		}
 	}
 }
