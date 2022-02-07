@@ -5,4 +5,5 @@ import org.springframework.data.repository.core.EntityInformation;
 public interface DynamoDbEntityInformation <T, ID> extends EntityInformation<T, ID> {
 
 	String getIdAttribute();
+	String getTableName();
 }

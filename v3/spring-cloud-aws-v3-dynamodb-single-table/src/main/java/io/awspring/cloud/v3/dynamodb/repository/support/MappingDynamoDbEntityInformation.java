@@ -34,4 +34,9 @@ public class MappingDynamoDbEntityInformation<T, ID> extends PersistentEntityInf
 		return idProperty != null ? (ID) this.entityMetadata.getIdentifierAccessor(entity).getIdentifier()
 			: (ID) converter.getId(entity, entityMetadata);
 	}
+
+	@Override
+	public String getTableName() {
+		return this.entityMetadata.getTableName();
+	}
 }
