@@ -30,8 +30,6 @@ public class DynamoDbMappingContext extends AbstractMappingContext<BasicDynamoDb
 
 	private NamingStrategy namingStrategy = NamingStrategy.INSTANCE;
 
-
-
 	// caches
 	private final Map<String, Set<DynamoDbPersistenceEntity<?>>> entitySetsByTableName = new ConcurrentHashMap<>();
 

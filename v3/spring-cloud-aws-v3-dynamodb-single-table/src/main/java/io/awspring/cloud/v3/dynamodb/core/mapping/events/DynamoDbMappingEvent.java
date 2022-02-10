@@ -9,4 +9,8 @@ public class DynamoDbMappingEvent<T> extends ApplicationEvent {
 		super(source);
 		this.tableName = tableName;
 	}
+
+	public String getTableName() {
+		return tableName;
+	}
 }

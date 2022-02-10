@@ -128,7 +128,13 @@ public class BasicDynamoDbPersistentProperty extends AnnotationBasedPersistentPr
 				Optional.ofNullable(getSetter()).map(it -> it.getParameters()[0].getAnnotatedType()))
 			.filter(it -> hasAnnotation(it, annotationType, getTypeInformation())).findFirst().orElse(null);
 	}
+	public boolean isEmbedded() {
+		return false;
+	}
 
+	public Class getTypeOfProperty() {
+		return null;
+	}
 	@Override
 	public boolean isRangeKey() {
 		RangeKey annotation = findAnnotation(RangeKey.class);

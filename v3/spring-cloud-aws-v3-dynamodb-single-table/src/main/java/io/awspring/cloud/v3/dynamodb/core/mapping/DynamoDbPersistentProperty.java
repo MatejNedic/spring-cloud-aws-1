@@ -25,4 +25,8 @@ public interface DynamoDbPersistentProperty	extends PersistentProperty<DynamoDbP
 
 
     boolean isRangeKey();
+
+	 boolean isEmbedded();
+
+	 Class getTypeOfProperty();
 }

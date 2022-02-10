@@ -35,6 +35,7 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 	private @Nullable
 	ClassLoader beanClassLoader;
 
+	//There should be option to change mapper in a future.
 	private final static ObjectMapper objectMapper = new ObjectMapper();
 	private final DynamoDbMappingContext mappingContext;
 
@@ -137,16 +138,7 @@ public class MappingDynamoDbConverter extends AbstractDynamoDbConverter implemen
 
 		for (DynamoDbPersistentProperty property : entity) {
 			if (property.isEntity() && property.getType() == List.class) {
-				try {
-					Field field = entity.getType().getDeclaredField(property.getName());
-					Type ty = field.getGenericType();
-					if (ty instanceof ParameterizedType) {
-						Type t = ((ParameterizedType) ty).getActualTypeArguments()[0];
-						propertyAccessor.setProperty(property, fromAttributeValue(source.get(property.getColumnName()), Class.forName(((Class) t).getName()), property.isEntity(), true));
-					}
-				} catch (Exception e) {
-					throw new RuntimeException("Could not get type of Collection with reflection");
-				}
+				propertyAccessor.setProperty(property, fromAttributeValue(source.get(property.getColumnName()), property.getTypeOfProperty(), property.isEntity(), true));
 			} else {
 				propertyAccessor.setProperty(property, fromAttributeValue(source.get(property.getColumnName()), property.getType(), property.isEntity(), false));
 			}
