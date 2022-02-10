@@ -18,14 +18,14 @@ import java.util.Set;
 
 public class DynamoDbRepositoryExtension extends CdiRepositoryExtensionSupport {
 
-	private final Map<Set<Annotation>, Bean<DynamoDbOperations>> cassandraOperationsMap = new HashMap<>();
+	private final Map<Set<Annotation>, Bean<DynamoDbOperations>> dynamoDbOperationsMap = new HashMap<>();
 
 	<T> void processBean(@Observes ProcessBean<T> processBean) {
 
 		Bean<T> bean = processBean.getBean();
 		bean.getTypes().stream() //
 			.filter(type -> type instanceof Class<?> && DynamoDbOperations.class.isAssignableFrom((Class<?>) type)) //
-			.forEach(type -> cassandraOperationsMap.put(bean.getQualifiers(), ((Bean<DynamoDbOperations>) bean)));
+			.forEach(type -> dynamoDbOperationsMap.put(bean.getQualifiers(), ((Bean<DynamoDbOperations>) bean)));
 	}
 
 	void afterBeanDiscovery(@Observes AfterBeanDiscovery afterBeanDiscovery, BeanManager beanManager) {
@@ -44,7 +44,7 @@ public class DynamoDbRepositoryExtension extends CdiRepositoryExtensionSupport {
 	private <T> CdiRepositoryBean<T> createRepositoryBean(Class<T> repositoryType, Set<Annotation> qualifiers,
 														  BeanManager beanManager) {
 
-		Bean<DynamoDbOperations> cassandraOperationsBean = Optional.ofNullable(this.cassandraOperationsMap.get(qualifiers))
+		Bean<DynamoDbOperations> cassandraOperationsBean = Optional.ofNullable(this.dynamoDbOperationsMap.get(qualifiers))
 			.orElseThrow(() -> new UnsatisfiedResolutionException(String.format(
 				"Unable to resolve a bean for '%s' with qualifiers %s.", DynamoDbOperations.class.getName(), qualifiers)));
 

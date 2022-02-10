@@ -1,7 +1,6 @@
 package io.awspring.cloud.v3.dynamodb;
 
 import io.awspring.cloud.v3.dynamodb.core.coverter.MappingDynamoDbConverter;
-import io.awspring.cloud.v3.dynamodb.core.mapping.Column;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbMappingContext;
 import io.awspring.cloud.v3.dynamodb.core.mapping.PartitionKey;
 import io.awspring.cloud.v3.dynamodb.core.mapping.Table;
@@ -31,11 +30,12 @@ public class MappingDynamoDbConverterTest {
 	@Test
 	void insertTestClass() {
 		LocalDate testDate = LocalDate.now();
-		TestClass testClassToBeInserted = new TestClass("testID", testDate);
+		TestClass testClassToBeInserted = new TestClass("testID", testDate, Arrays.asList("test1", "test2"), Collections.singletonList(new TelephoneNumber("099")));
 		Map<String, AttributeValue> mapToBeChecked = new HashMap<>();
 		mappingDynamoDbConverter.write(testClassToBeInserted, mapToBeChecked);
 		assertThat(mapToBeChecked.get("id").s()).isEqualTo("testID");
 		assertThat(mapToBeChecked.get("value").s()).isEqualTo(testDate.toString());
+		assertThat(mapToBeChecked.get("myList").l().size()).isEqualTo(2);
 	}
 
 
@@ -47,6 +47,10 @@ public class MappingDynamoDbConverterTest {
 
 		private LocalDate value;
 
+		private List<String> myList;
+
+		private List<TelephoneNumber> telephoneNumber;
+
 		public TestClass() {
 		}
 
@@ -55,6 +59,34 @@ public class MappingDynamoDbConverterTest {
 			this.value = value;
 		}
 
+		public TestClass(String id, LocalDate value, List<String> myList) {
+			this.myList = myList;
+			this.id = id;
+			this.value = value;
+		}
+
+		public TestClass(String id, LocalDate value, List<String> myList, List<TelephoneNumber> telephoneNumber) {
+			this.telephoneNumber = telephoneNumber;
+			this.myList = myList;
+			this.id = id;
+			this.value = value;
+		}
+
+		public List<TelephoneNumber> getTelephoneNumber() {
+			return telephoneNumber;
+		}
+
+		public void setTelephoneNumber(List<TelephoneNumber> telephoneNumber) {
+			this.telephoneNumber = telephoneNumber;
+		}
+
+		public List<String> getMyList() {
+			return myList;
+		}
+
+		public void setMyList(List<String> myList) {
+			this.myList = myList;
+		}
 
 		public String getId() {
 			return id;
@@ -73,5 +105,23 @@ public class MappingDynamoDbConverterTest {
 		}
 	}
 
+	public static class TelephoneNumber {
+		private String telephone;
+
+		public TelephoneNumber() {
+		}
+
+		public TelephoneNumber(String telephone) {
+			this.telephone = telephone;
+		}
+
+		public String getTelephone() {
+			return telephone;
+		}
+
+		public void setTelephone(String telephone) {
+			this.telephone = telephone;
+		}
+	}
 
 }

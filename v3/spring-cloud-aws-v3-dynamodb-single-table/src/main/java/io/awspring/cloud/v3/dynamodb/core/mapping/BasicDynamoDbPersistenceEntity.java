@@ -49,7 +49,7 @@ public class BasicDynamoDbPersistenceEntity<T> extends BasicPersistentEntity<T, 
 	private String determineTableName() {
 		Table annotation = findAnnotation(Table.class);
 
-		if(annotation != null || StringUtils.hasText(annotation.value())) {
+		if(annotation != null && StringUtils.hasText(annotation.value())) {
 			return annotation.value();
 		}
 		return namingStrategy.getTableName(this);

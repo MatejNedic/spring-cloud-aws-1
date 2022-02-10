@@ -71,13 +71,24 @@ public class StatementFactory {
 		return DeleteItemRequest.builder().tableName(tableName).key(keys).build();
 	}
 
-	GetItemRequest findByKey(Object key, String tableName, DynamoDbPersistenceEntity<?> entity) {
+	GetItemRequest findByKey(Object key, String tableName, DynamoDbPersistenceEntity<?> entity, Boolean consistentRead) {
 		Assert.notNull(tableName, "TableName must not be null");
 		Assert.notNull(key, "Key must not be null");
 		Assert.notNull(entity, "DynamoDbPersistenceEntity must not be null");
 		Map<String, AttributeValue> keys = new LinkedHashMap<>();
 		dynamoDbConverter.findByKey(key, keys, entity);
-		return GetItemRequest.builder().tableName(tableName)
+		return GetItemRequest.builder().tableName(tableName).consistentRead(consistentRead)
+			.key(keys).build();
+	}
+
+	GetItemRequest findByKeys(Map<String, Object> keysUsedForLookUp, String tableName, DynamoDbPersistenceEntity<?> entity, Boolean consistentRead) {
+		Assert.notNull(tableName, "TableName must not be null");
+		Assert.notNull(keysUsedForLookUp, "Keys must not be null");
+		Assert.notNull(entity, "DynamoDbPersistenceEntity must not be null");
+		Map<String, AttributeValue> keys = new LinkedHashMap<>();
+
+		dynamoDbConverter.findByKeys(keysUsedForLookUp, keys, entity);
+		return GetItemRequest.builder().tableName(tableName).consistentRead(consistentRead)
 			.key(keys).build();
 	}
 

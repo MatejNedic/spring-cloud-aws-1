@@ -15,6 +15,7 @@ import software.amazon.awssdk.services.dynamodb.model.*;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -100,13 +101,15 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 	@Test
 	void insertThenGet() {
 		LocalDate testDate = LocalDate.now();
-		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate);
+		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate, Arrays.asList("test1", "test2"), Arrays.asList(new MappingDynamoDbConverterTest.TelephoneNumber("099"), new MappingDynamoDbConverterTest.TelephoneNumber("095")));
 
 		dynamoDbTemplate.save(testClassToBeInserted);
 		MappingDynamoDbConverterTest.TestClass readClass = dynamoDbTemplate.getEntityByKey(testClassToBeInserted.getId(), MappingDynamoDbConverterTest.TestClass.class);
 
 		Assert.assertEquals(readClass.getId(), testClassToBeInserted.getId());
 		Assert.assertEquals(readClass.getValue(), testClassToBeInserted.getValue());
+		Assert.assertEquals(readClass.getMyList(), Arrays.asList("test1", "test2"));
+		Assert.assertEquals(readClass.getTelephoneNumber().size(), 2);
 	}
 
 

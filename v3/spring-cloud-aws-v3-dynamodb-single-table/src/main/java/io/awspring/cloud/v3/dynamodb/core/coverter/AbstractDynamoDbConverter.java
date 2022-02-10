@@ -1,5 +1,6 @@
 package io.awspring.cloud.v3.dynamodb.core.coverter;
 
+import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.support.GenericConversionService;
@@ -7,6 +8,9 @@ import org.springframework.data.convert.CustomConversions;
 import org.springframework.data.mapping.model.EntityInstantiators;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+
+import java.util.Map;
 
 public abstract class AbstractDynamoDbConverter implements DynamoDbConverter, InitializingBean {
 
@@ -62,5 +66,4 @@ public abstract class AbstractDynamoDbConverter implements DynamoDbConverter, In
 	public void setCustomConversions(CustomConversions conversions) {
 		this.conversions = conversions;
 	}
-
 }

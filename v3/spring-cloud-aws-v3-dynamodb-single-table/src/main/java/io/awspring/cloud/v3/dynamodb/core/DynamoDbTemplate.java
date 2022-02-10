@@ -82,13 +82,36 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 
 	@Override
 	public <T> T getEntityByKey(Object id, Class<T> entityClass) {
+		return getEntityByKey(id, entityClass, Boolean.FALSE);
+	}
+
+	@Override
+	public <T> T findEntityByKeys(Map<String, Object> mapOfKeys, Class<T> entityClass) {
+		return findEntityByKeys(mapOfKeys, entityClass, Boolean.FALSE);
+	}
+
+	@Override
+	public <T> T findEntityByKeys(Map<String, Object> mapOfKeys, Class<T> entityClass, Boolean consistentRead) {
+		Assert.notNull(mapOfKeys, "Must not be null");
+		Assert.notNull(entityClass, "Entity type must not be null");
+
+		DynamoDbPersistenceEntity<?> entity = getRequiredPersistentEntity(entityClass);
+		String tableName = getTableName(entityClass);
+		GetItemRequest getItemRequest = statementFactory.findByKeys(mapOfKeys, tableName, entity, consistentRead);
+		GetItemResponse getItemResponse = dynamoDbClient.getItem(getItemRequest);
+		return converter.read(entityClass, getItemResponse.item());
+	}
+
+
+	@Override
+	public <T> T getEntityByKey(Object id, Class<T> entityClass, Boolean consistentRead) {
 
 		Assert.notNull(id, "Id must not be null");
 		Assert.notNull(entityClass, "Entity type must not be null");
 
 		DynamoDbPersistenceEntity<?> entity = getRequiredPersistentEntity(entityClass);
 		String tableName = getTableName(entityClass);
-		GetItemRequest getItemRequest = statementFactory.findByKey(id, tableName, entity);
+		GetItemRequest getItemRequest = statementFactory.findByKey(id, tableName, entity, consistentRead);
 		GetItemResponse getItemResponse = dynamoDbClient.getItem(getItemRequest);
 		return converter.read(entityClass, getItemResponse.item());
 	}

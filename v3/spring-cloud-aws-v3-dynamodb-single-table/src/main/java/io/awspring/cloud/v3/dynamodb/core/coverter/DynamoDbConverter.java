@@ -1,5 +1,6 @@
 package io.awspring.cloud.v3.dynamodb.core.coverter;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistentProperty;
 import org.springframework.data.convert.CustomConversions;
@@ -23,7 +24,9 @@ public interface DynamoDbConverter extends EntityConverter<DynamoDbPersistenceEn
 
 	void delete(Object objectToDelete, Map<String, AttributeValue> object, DynamoDbPersistenceEntity<?> persistenceEntity);
 
-	public abstract void findByKey(Object key, Map<String, AttributeValue> keys, DynamoDbPersistenceEntity<?> persistenceEntity);
+	void findByKey(Object key, Map<String, AttributeValue> keys, DynamoDbPersistenceEntity<?> persistenceEntity);
+
+	void findByKeys(Map<String, Object> keysForLookUp, Map<String, AttributeValue> keys, DynamoDbPersistenceEntity<?> persistenceEntity);
 
 	void update(Object objectToUpdate, Map<String, AttributeValue> keys, DynamoDbPersistenceEntity<?> entity, Map<String, AttributeValueUpdate> attributeUpdates);
 }

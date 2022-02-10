@@ -12,6 +12,11 @@ public interface DynamoDbOperations {
 	DynamoDbConverter getConverter();
 	<T> Iterable<T> saveAll(Iterable<T> entities, Class ent);
 	<T> T getEntityByKey(Object id, Class<T> entityClass);
+	<T> T findEntityByKeys(Map<String, Object> mapOfKeys, Class<T> entityClass);
+
+	<T> T findEntityByKeys(Map<String, Object> mapOfKeys, Class<T> entityClass, Boolean consistentRead);
+
+	<T> T getEntityByKey(Object id, Class<T> entityClass, Boolean consistentRead);
 	<T> EntityWriteResult<T> update(T entity);
 
 }
