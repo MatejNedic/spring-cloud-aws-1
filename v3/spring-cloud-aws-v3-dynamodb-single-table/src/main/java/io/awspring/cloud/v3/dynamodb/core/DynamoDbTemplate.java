@@ -186,6 +186,31 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		return this.converter;
 	}
 
+	@Override
+	public <T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass, List<Object> values) {
+		return executeStatement(statement,nextToken,entityClass,values,Boolean.FALSE);
+	}
+
+	@Override
+	public <T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass) {
+		return executeStatement(statement,nextToken,entityClass,null);
+	}
+
+	@Override
+	public <T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass, List<Object> values, Boolean consistentRead) {
+		Assert.notNull(statement, "Statement must not be null");
+		Assert.notNull(entityClass, "Entity type must not be null");
+
+		DynamoDbPersistenceEntity<?> entity = getRequiredPersistentEntity(entityClass);
+		ExecuteStatementRequest executeStatementRequest = statementFactory.executeStatementRequest(statement,nextToken,values,entity,consistentRead);
+		ExecuteStatementResponse executeStatementResponse = dynamoDbClient.executeStatement(executeStatementRequest);
+		List<T> listToBeReturned = new ArrayList<>(executeStatementResponse.items().size());
+		executeStatementResponse.items().forEach(item ->
+			listToBeReturned.add(converter.read(entityClass, item))
+			);
+		return EntityReadResult.of(listToBeReturned, executeStatementResponse.nextToken());
+	}
+
 	public <T> EntityWriteResult<T> update(T entity) {
 		return update(entity, null);
 	}

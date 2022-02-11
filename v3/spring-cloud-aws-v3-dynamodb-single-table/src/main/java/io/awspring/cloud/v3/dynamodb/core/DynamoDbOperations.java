@@ -20,6 +20,9 @@ public interface DynamoDbOperations {
 
 	DynamoDbConverter getConverter();
 
+	<T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass,List<Object> values);
+	<T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass);
+	<T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass, List<Object> values, Boolean consistentRead);
 
 	<T> T getEntityByKey(Object id, Class<T> entityClass);
 	<T> T getEntityByKey(Object id, Class<T> entityClass, Boolean consistentRead);
