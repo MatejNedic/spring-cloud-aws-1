@@ -73,11 +73,11 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		String tableName = getTableName(ent);
 		Map<String, List<WriteRequest>> mapRequest = new HashMap<>();
 		entities.forEach(entity -> {
-			maybeEmitEvent(new DynamoDbBeforeSaveEvent<T>(entity, tableName));
 			putRequests.add(WriteRequest.builder().putRequest(doSaveAll(entity, tableName)).build());
 		});
 		mapRequest.put(tableName, putRequests);
 		BatchWriteItemRequest batchWriteItemRequest = BatchWriteItemRequest.builder().requestItems(mapRequest).build();
+		maybeEmitEvent(new DynamoDbBeforeSaveEvent<>(entities, tableName));
 		dynamoDbClient.batchWriteItem(batchWriteItemRequest);
 		maybeEmitEvent(new DynamoDbAfterSaveEvent<>(entities, tableName));
 		return entities;
@@ -124,7 +124,6 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		EntityOperations.AdaptibleEntity<T> source = getEntityOperations().forEntity(entity, getConverter().getConversionService());
 		T entityToSave = maybeCallBeforeSave(entity, tableName);
 		PutRequest request = statementFactory.insertAll(entityToSave, source.getPersistentEntity());
-		maybeEmitEvent(new DynamoDbAfterSaveEvent<>(entityToSave, tableName));
 		return request;
 	}
 
@@ -138,10 +137,10 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	public <T> EntityWriteResult<T> save(T entity, String conditionExpression, Map<String, String> expressionAttributeNames,
 										 Map<String, Object> expressionAttributeValues) {
 		String tableName = getTableName(entity.getClass());
-		maybeEmitEvent(new DynamoDbBeforeSaveEvent<T>(entity, tableName));
 		EntityOperations.AdaptibleEntity<T> source = getEntityOperations().forEntity(entity, getConverter().getConversionService());
 		T entityToSave = maybeCallBeforeSave(entity, tableName);
 		PutItemRequest request = statementFactory.insert(entityToSave, source.getPersistentEntity(), tableName, conditionExpression, expressionAttributeNames, expressionAttributeValues);
+		maybeEmitEvent(new DynamoDbBeforeSaveEvent<T>(entity, tableName));
 		PutItemResponse putItemResponse = dynamoDbClient.putItem(request);
 		maybeEmitEvent(new DynamoDbAfterSaveEvent<>(entityToSave, tableName));
 		return EntityWriteResult.of(putItemResponse.attributes(), entity);
@@ -156,8 +155,8 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	@Override
 	public void delete(Object entity) {
 		String tableName = getTableName(entity.getClass());
-		maybeEmitEvent(new DynamoDbBeforeDeleteEvent<>(entity, tableName));
 		DeleteItemRequest request = statementFactory.delete(entity, getRequiredPersistentEntity(entity.getClass()), tableName);
+		maybeEmitEvent(new DynamoDbBeforeDeleteEvent<>(entity, tableName));
 		dynamoDbClient.deleteItem(request);
 		maybeEmitEvent(new DynamoDbAfterDeleteEvent<>(entity, tableName));
 	}
@@ -175,8 +174,8 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	@Override
 	public <T> void delete(Class<T> entityClass, Map<String, Object> keys, String conditionExpression, Map<String, String> expressionAttributeNames, Map<String, Object> expressionAttributeValues) {
 		String tableName = getTableName(entityClass.getClass());
-		maybeEmitEvent(new DynamoDbBeforeDeleteEvent<>(entityClass, tableName));
 		DeleteItemRequest request = statementFactory.delete(keys, getRequiredPersistentEntity(entityClass.getClass()), tableName, conditionExpression, expressionAttributeNames, expressionAttributeValues);
+		maybeEmitEvent(new DynamoDbBeforeDeleteEvent<>(entityClass, tableName));
 		dynamoDbClient.deleteItem(request);
 		maybeEmitEvent(new DynamoDbAfterDeleteEvent<>(entityClass, tableName));
 	}
