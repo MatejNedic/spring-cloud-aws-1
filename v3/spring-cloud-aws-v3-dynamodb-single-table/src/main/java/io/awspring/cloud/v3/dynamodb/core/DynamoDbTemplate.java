@@ -163,7 +163,7 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 
 	@Override
 	public <T> void delete(Class<T> entityClass, Map<String, Object> keys) {
-	 delete(entityClass, keys, null);
+		delete(entityClass, keys, null);
 	}
 
 	@Override
@@ -187,12 +187,12 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 
 	@Override
 	public <T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass, List<Object> values) {
-		return executeStatement(statement,nextToken,entityClass,values,Boolean.FALSE);
+		return executeStatement(statement, nextToken, entityClass, values, Boolean.FALSE);
 	}
 
 	@Override
 	public <T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass) {
-		return executeStatement(statement,nextToken,entityClass,null);
+		return executeStatement(statement, nextToken, entityClass, null);
 	}
 
 	@Override
@@ -201,12 +201,16 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		Assert.notNull(entityClass, "Entity type must not be null");
 
 		DynamoDbPersistenceEntity<?> entity = getRequiredPersistentEntity(entityClass);
-		ExecuteStatementRequest executeStatementRequest = statementFactory.executeStatementRequest(statement,nextToken,values,entity,consistentRead);
+		ExecuteStatementRequest executeStatementRequest = statementFactory.executeStatementRequest(statement, nextToken, values, entity, consistentRead);
 		ExecuteStatementResponse executeStatementResponse = dynamoDbClient.executeStatement(executeStatementRequest);
 		List<T> listToBeReturned = new ArrayList<>(executeStatementResponse.items().size());
 		executeStatementResponse.items().forEach(item ->
-			listToBeReturned.add(converter.read(entityClass, item))
-			);
+			{
+				if (item != null) {
+					listToBeReturned.add(converter.read(entityClass, item));
+				}
+			}
+		);
 		return EntityReadResult.of(listToBeReturned, executeStatementResponse.nextToken());
 	}
 
