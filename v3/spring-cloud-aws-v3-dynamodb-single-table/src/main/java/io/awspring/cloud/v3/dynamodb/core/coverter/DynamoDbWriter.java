@@ -7,5 +7,5 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.util.Map;
 interface DynamoDbWriter<T> extends EntityWriter<T, Map<String, AttributeValue>> {
-	Object convertToDynamoDbType(@Nullable Object obj, DynamoDbPersistenceEntity<?> entity);
+	AttributeValue convertToDynamoDbType(@Nullable Object obj, DynamoDbPersistenceEntity<?> entity);
 }

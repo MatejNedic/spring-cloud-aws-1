@@ -1,8 +1,8 @@
 package io.awspring.cloud.v3.dynamodb.core;
 
 import io.awspring.cloud.v3.dynamodb.core.coverter.DynamoDbConverter;
-import io.awspring.cloud.v3.dynamodb.core.mapping.events.*;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
+import io.awspring.cloud.v3.dynamodb.core.mapping.events.*;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -14,7 +14,10 @@ import org.springframework.util.Assert;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * DynamoDbTemplate used for Entity and DynamoDb communication.
@@ -29,9 +32,9 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	private final EntityOperations entityOperations;
 	private StatementFactory statementFactory;
 
-	private @Nullable EntityCallbacks entityCallbacks;
+	private @Nullable
+	EntityCallbacks entityCallbacks;
 	private ApplicationEventPublisher eventPublisher;
-
 
 
 	public DynamoDbTemplate(DynamoDbClient dynamoDbClient, DynamoDbConverter converter) {
@@ -69,7 +72,7 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		List<WriteRequest> putRequests = new ArrayList<>();
 		String tableName = getTableName(ent);
 		Map<String, List<WriteRequest>> mapRequest = new HashMap<>();
-		entities.forEach( entity -> {
+		entities.forEach(entity -> {
 			maybeEmitEvent(new DynamoDbBeforeSaveEvent<T>(entity, tableName));
 			putRequests.add(WriteRequest.builder().putRequest(doSaveAll(entity, tableName)).build());
 		});
@@ -117,40 +120,41 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	}
 
 
-
 	private <T> PutRequest doSaveAll(T entity, String tableName) {
 		EntityOperations.AdaptibleEntity<T> source = getEntityOperations().forEntity(entity, getConverter().getConversionService());
-		T entityToUse = source.isVersionedEntity() ? source.initializeVersionProperty() : entity;
-		return doSaveAllUnVersioned(entityToUse, tableName, source);
-	}
-
-	private <T> PutRequest doSaveAllUnVersioned(T entityToUse, String tableName, EntityOperations.AdaptibleEntity<T> source) {
-		T entityToSave = maybeCallBeforeSave(entityToUse, tableName);
+		T entityToSave = maybeCallBeforeSave(entity, tableName);
 		PutRequest request = statementFactory.insertAll(entityToSave, source.getPersistentEntity());
 		maybeEmitEvent(new DynamoDbAfterSaveEvent<>(entityToSave, tableName));
 		return request;
 	}
 
+
 	@Override
-	public <T> EntityWriteResult<T> save(T entity) {
-		String tableName =  getTableName(entity.getClass());
-		maybeEmitEvent(new DynamoDbBeforeSaveEvent<T>(entity, tableName));
-		return EntityWriteResult.of(doSave(entity, tableName).attributes(), entity);
+	public <T> EntityWriteResult<T> save(T entity, String conditionExpression) {
+		return save(entity, conditionExpression, null, null);
 	}
 
-	private <T> PutItemResponse doSave(T entity, String tableName) {
+	@Override
+	public <T> EntityWriteResult<T> save(T entity, String conditionExpression, Map<String, String> expressionAttributeNames,
+										 Map<String, Object> expressionAttributeValues) {
+		String tableName = getTableName(entity.getClass());
+		maybeEmitEvent(new DynamoDbBeforeSaveEvent<T>(entity, tableName));
 		EntityOperations.AdaptibleEntity<T> source = getEntityOperations().forEntity(entity, getConverter().getConversionService());
 		T entityToSave = maybeCallBeforeSave(entity, tableName);
-		PutItemRequest request = statementFactory.insert(entityToSave, source.getPersistentEntity(), tableName);
+		PutItemRequest request = statementFactory.insert(entityToSave, source.getPersistentEntity(), tableName, conditionExpression, expressionAttributeNames, expressionAttributeValues);
 		PutItemResponse putItemResponse = dynamoDbClient.putItem(request);
 		maybeEmitEvent(new DynamoDbAfterSaveEvent<>(entityToSave, tableName));
-		return putItemResponse;
+		return EntityWriteResult.of(putItemResponse.attributes(), entity);
+	}
+
+	@Override
+	public <T> EntityWriteResult<T> save(T entity) {
+		return save(entity, Boolean.FALSE.toString());
 	}
 
 
-
 	@Override
-	public <KEY> void delete(Object entity, KEY key) {
+	public void delete(Object entity) {
 		String tableName = getTableName(entity.getClass());
 		maybeEmitEvent(new DynamoDbBeforeDeleteEvent<>(entity, tableName));
 		DeleteItemRequest request = statementFactory.delete(entity, getRequiredPersistentEntity(entity.getClass()), tableName);
@@ -159,18 +163,68 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	}
 
 	@Override
+	public <T> void delete(Class<T> entityClass, Map<String, Object> keys) {
+	 delete(entityClass, keys, null);
+	}
+
+	@Override
+	public <T> void delete(Class<T> entityClass, Map<String, Object> keys, String conditionalExpression) {
+		delete(entityClass, keys, conditionalExpression, null, null);
+	}
+
+	@Override
+	public <T> void delete(Class<T> entityClass, Map<String, Object> keys, String conditionExpression, Map<String, String> expressionAttributeNames, Map<String, Object> expressionAttributeValues) {
+		String tableName = getTableName(entityClass.getClass());
+		maybeEmitEvent(new DynamoDbBeforeDeleteEvent<>(entityClass, tableName));
+		DeleteItemRequest request = statementFactory.delete(keys, getRequiredPersistentEntity(entityClass.getClass()), tableName, conditionExpression, expressionAttributeNames, expressionAttributeValues);
+		dynamoDbClient.deleteItem(request);
+		maybeEmitEvent(new DynamoDbAfterDeleteEvent<>(entityClass, tableName));
+	}
+
+	@Override
 	public DynamoDbConverter getConverter() {
 		return this.converter;
 	}
 
 	public <T> EntityWriteResult<T> update(T entity) {
+		return update(entity, null);
+	}
+
+	@Override
+	public <T> EntityWriteResult<T> update(T entity, String conditionExpression) {
+		return update(entity, conditionExpression, null);
+	}
+
+	@Override
+	public <T> EntityWriteResult<T> update(T entity, String conditionExpression, Map<String, String> expressionAttributeNames) {
+		return update(entity, conditionExpression, expressionAttributeNames, null);
+	}
+
+	@Override
+	public <T> EntityWriteResult<T> update(T entity, String conditionExpression, Map<String,
+		String> expressionAttributeNames, Map<String, Object> expressionAttributeValues) {
 		String tableName = getTableName(entity.getClass());
 		DynamoDbPersistenceEntity dynamoDbPersistenceEntity = getRequiredPersistentEntity(entity.getClass());
-		UpdateItemRequest updateItemRequest = statementFactory.update(entity, tableName, dynamoDbPersistenceEntity);
+		UpdateItemRequest updateItemRequest = statementFactory.update(entity, tableName, dynamoDbPersistenceEntity,
+			conditionExpression, expressionAttributeNames, expressionAttributeValues);
 		maybeEmitEvent(new DynamoDbBeforeUpdateEvent<>(entity, tableName));
 		UpdateItemResponse updateItemResponse = dynamoDbClient.updateItem(updateItemRequest);
 		maybeEmitEvent(new DynamoDbAfterUpdateEvent<>(entity, tableName));
 		return EntityWriteResult.of(updateItemResponse.attributes(), entity);
+	}
+
+	@Override
+	public <T> EntityWriteResult<T> update(Map<String, Object> keys, String updateExpression, String conditionExpression,
+										   Map<String, String> expressionAttributeNames, Map<String, Object> expressionAttributeValues,
+										   Class<T> entityClass) {
+		String tableName = getTableName(entityClass.getClass());
+		DynamoDbPersistenceEntity dynamoDbPersistenceEntity = getRequiredPersistentEntity(entityClass.getClass());
+		UpdateItemRequest updateItemRequest = statementFactory.update(keys, updateExpression,
+			conditionExpression, expressionAttributeNames, tableName, dynamoDbPersistenceEntity, expressionAttributeValues);
+		maybeEmitEvent(new DynamoDbBeforeUpdateEvent<>(entityClass, tableName));
+		UpdateItemResponse updateItemResponse = dynamoDbClient.updateItem(updateItemRequest);
+		maybeEmitEvent(new DynamoDbAfterUpdateEvent<>(entityClass, tableName));
+		return EntityWriteResult.of(updateItemResponse.attributes(), converter.read(entityClass, updateItemResponse.attributes()));
 	}
 
 

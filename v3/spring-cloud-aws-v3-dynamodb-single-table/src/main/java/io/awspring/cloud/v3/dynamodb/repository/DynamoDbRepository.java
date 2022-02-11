@@ -28,13 +28,6 @@ public interface DynamoDbRepository<T, KEY> {
 	 * @throws IllegalArgumentException if {@literal KEY} is {@literal null}.
 	 */
 	Optional<T> findByPartitionKey(KEY key);
-	/**
-	 * Deletes the entity with the given primaryKey.
-	 *
-	 * @param key must not be {@literal null}.
-	 * @throws IllegalArgumentException in case the given {@literal KEY} is {@literal null}
-	 */
-	void deleteByKey(KEY key);
 
 	/**
 	 * Deletes a given entity.

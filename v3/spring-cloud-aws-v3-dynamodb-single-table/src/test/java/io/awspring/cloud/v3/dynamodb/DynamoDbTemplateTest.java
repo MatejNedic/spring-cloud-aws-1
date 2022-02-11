@@ -91,7 +91,7 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
 		Assert.assertEquals(LocalDate.parse(attributeValueHashMap.get("value").s()), testClassToBeInserted.getValue());
 
-		dynamoDbTemplate.delete(testClassToBeInserted, "testId");
+		dynamoDbTemplate.delete(testClassToBeInserted);
 
 		attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
 		Assert.assertEquals(attributeValueHashMap.size(), 0L);

@@ -36,15 +36,9 @@ public class SimpleDynamoDbRepository<T, KEY> implements DynamoDbRepository<T, K
 		return Optional.of(dynamoDbOperations.getEntityByKey(key,this.entityInformation.getJavaType()));
 	}
 
-
-	@Override
-	public void deleteByKey(KEY key) {
-		dynamoDbOperations.delete(entityInformation.getJavaType(), key);
-	}
-
 	@Override
 	public void delete(T entity) {
-		dynamoDbOperations.delete(entityInformation.getJavaType(), entityInformation.getIdAttribute());
+		dynamoDbOperations.delete(entityInformation.getJavaType());
 	}
 
 	@Override
