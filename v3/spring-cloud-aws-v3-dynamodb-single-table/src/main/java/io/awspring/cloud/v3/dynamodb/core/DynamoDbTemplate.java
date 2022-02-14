@@ -148,7 +148,7 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 
 	@Override
 	public <T> EntityWriteResult<T> save(T entity) {
-		return save(entity, Boolean.FALSE.toString());
+		return save(entity, null);
 	}
 
 

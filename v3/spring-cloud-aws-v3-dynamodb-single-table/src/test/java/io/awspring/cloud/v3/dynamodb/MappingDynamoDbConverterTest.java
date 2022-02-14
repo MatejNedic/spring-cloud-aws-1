@@ -39,7 +39,7 @@ public class MappingDynamoDbConverterTest {
 	}
 
 
-	@Table("test")
+	@Table("SomeTableName")
 	public static class TestClass {
 
 		@PartitionKey

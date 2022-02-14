@@ -18,4 +18,8 @@ public class EntityReadResult<T> {
 	public T getEntity() {
 		return entity;
 	}
+
+	public String getNextToken() {
+		return nextToken;
+	}
 }

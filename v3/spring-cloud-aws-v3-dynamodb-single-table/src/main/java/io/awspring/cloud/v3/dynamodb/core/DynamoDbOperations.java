@@ -1,6 +1,7 @@
 package io.awspring.cloud.v3.dynamodb.core;
 
 import io.awspring.cloud.v3.dynamodb.core.coverter.DynamoDbConverter;
+import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 
 import java.security.KeyPair;
 import java.util.List;
@@ -19,6 +20,9 @@ public interface DynamoDbOperations {
 	<T> void delete(Class<T> entityClass,Map<String, Object> keys, String conditionExpression, Map<String, String> expressionAttributeNames, Map<String, Object> expressionAttributeValues);
 
 	DynamoDbConverter getConverter();
+
+	<T> EntityReadResult<List<T>> query(Class<T> entityClass, String indexName,  ,Boolean consistentRead);
+	QueryRequest
 
 	<T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass, List<Object> values);
 	<T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass);

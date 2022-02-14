@@ -14,10 +14,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,7 +40,7 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 
 		KeySchemaElement idKey = KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build();
 		AttributeDefinition id = AttributeDefinition.builder().attributeName("id").attributeType(ScalarAttributeType.S).build();
-		CreateTableRequest createTableRequest = CreateTableRequest.builder().tableName("test").attributeDefinitions(id).keySchema(idKey).provisionedThroughput(ProvisionedThroughput.builder().readCapacityUnits(10L).writeCapacityUnits(10L).build()).build();
+		CreateTableRequest createTableRequest = CreateTableRequest.builder().tableName("SomeTableName").attributeDefinitions(id).keySchema(idKey).provisionedThroughput(ProvisionedThroughput.builder().readCapacityUnits(10L).writeCapacityUnits(10L).build()).build();
 		dynamoDbClient.createTable(createTableRequest);
 	}
 
@@ -133,7 +130,6 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
 		Assert.assertEquals(LocalDate.parse(attributeValueHashMap.get("value").s()), newDate);
 	}
-
 
 
 }
