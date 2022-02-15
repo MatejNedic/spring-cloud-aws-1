@@ -6,14 +6,14 @@ import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 
 public class LocalStackTestContainer {
-	static DockerImageName localstackImage = DockerImageName.parse("localstack/localstack:0.11.3");
+	static DockerImageName localstackImage = DockerImageName.parse("localstack/localstack:latest");
 
 	@Rule
 	public static LocalStackContainer localstack;
 
 	{
 		localstack = new LocalStackContainer(localstackImage)
-			.withServices(LocalStackContainer.Service.DYNAMODB);
+			.withServices(LocalStackContainer.Service.DYNAMODB).withReuse(true);
 		localstack.start();
 	}
 

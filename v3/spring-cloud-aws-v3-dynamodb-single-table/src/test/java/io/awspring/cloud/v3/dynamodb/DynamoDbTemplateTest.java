@@ -1,6 +1,7 @@
 package io.awspring.cloud.v3.dynamodb;
 
 import io.awspring.cloud.v3.dynamodb.core.DynamoDbTemplate;
+import io.awspring.cloud.v3.dynamodb.core.EntityReadResult;
 import io.awspring.cloud.v3.dynamodb.core.coverter.MappingDynamoDbConverter;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbMappingContext;
 import io.awspring.cloud.v3.dynamodb.core.mapping.events.DynamoDbBeforeSaveCallback;
@@ -53,7 +54,7 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 
 		Map keyToFetch = new HashMap();
 		keyToFetch.put("id", AttributeValue.builder().s("testID").build());
-		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
+		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("SomeTableName").build()).item();
 
 		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
 		Assert.assertEquals(LocalDate.parse(attributeValueHashMap.get("value").s()), testClassToBeInserted.getValue());
@@ -67,7 +68,7 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 
 		Map keyToFetch = new HashMap();
 		keyToFetch.put("id", AttributeValue.builder().s("anotherId").build());
-		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
+		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("SomeTableName").build()).item();
 
 		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
 		Assert.assertTrue(attributeValueHashMap.get("value").nul());
@@ -77,20 +78,20 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 	@Test
 	void insertThenDelete() {
 		LocalDate testDate = LocalDate.now();
-		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate);
+		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID2", testDate);
 
 		dynamoDbTemplate.save(testClassToBeInserted);
 
 		Map keyToFetch = new HashMap();
-		keyToFetch.put("id", AttributeValue.builder().s("testID").build());
-		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
+		keyToFetch.put("id", AttributeValue.builder().s("testID2").build());
+		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("SomeTableName").build()).item();
 
 		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
 		Assert.assertEquals(LocalDate.parse(attributeValueHashMap.get("value").s()), testClassToBeInserted.getValue());
 
 		dynamoDbTemplate.delete(testClassToBeInserted);
 
-		attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
+		attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("SomeTableName").build()).item();
 		Assert.assertEquals(attributeValueHashMap.size(), 0L);
 	}
 
@@ -98,7 +99,7 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 	@Test
 	void insertThenGet() {
 		LocalDate testDate = LocalDate.now();
-		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate, Arrays.asList("test1", "test2"), Arrays.asList(new MappingDynamoDbConverterTest.TelephoneNumber("099"), new MappingDynamoDbConverterTest.TelephoneNumber("095")));
+		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID3", testDate, Arrays.asList("test1", "test2"), Arrays.asList(new MappingDynamoDbConverterTest.TelephoneNumber("099"), new MappingDynamoDbConverterTest.TelephoneNumber("095")));
 
 		dynamoDbTemplate.save(testClassToBeInserted);
 		MappingDynamoDbConverterTest.TestClass readClass = dynamoDbTemplate.getEntityByKey(testClassToBeInserted.getId(), MappingDynamoDbConverterTest.TestClass.class);
@@ -114,7 +115,7 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 	@Test
 	void insertUpdateThenGet() {
 		LocalDate testDate = LocalDate.now();
-		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID", testDate);
+		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("testID4", testDate);
 
 		dynamoDbTemplate.save(testClassToBeInserted);
 
@@ -123,13 +124,26 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 		dynamoDbTemplate.update(testClassToBeInserted);
 
 		Map keyToFetch = new HashMap();
-		keyToFetch.put("id", AttributeValue.builder().s("testID").build());
-		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("test").build()).item();
+		keyToFetch.put("id", AttributeValue.builder().s("testID4").build());
+		Map<String, AttributeValue> attributeValueHashMap = dynamoDbClient.getItem(GetItemRequest.builder().key(keyToFetch).tableName("SomeTableName").build()).item();
 
 
 		Assert.assertEquals(attributeValueHashMap.get("id").s(), testClassToBeInserted.getId());
 		Assert.assertEquals(LocalDate.parse(attributeValueHashMap.get("value").s()), newDate);
 	}
+
+
+	@Test
+	void insertAndThenExecute() {
+		LocalDate testDate = LocalDate.now();
+		MappingDynamoDbConverterTest.TestClass testClassToBeInserted = new MappingDynamoDbConverterTest.TestClass("randomId", testDate);
+
+		dynamoDbTemplate.save(testClassToBeInserted);
+
+		EntityReadResult<List<MappingDynamoDbConverterTest.TestClass>> list = dynamoDbTemplate.executeStatement("Select * from SomeTableName", null, MappingDynamoDbConverterTest.TestClass.class);
+		assertThat(list.getEntity().size()).isEqualTo(1L);
+	}
+
 
 
 }

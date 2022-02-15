@@ -2,16 +2,12 @@ package io.awspring.cloud.v3.dynamodb.request;
 
 import java.util.Map;
 
-public class QueryRequest extends AWSDynamoDbParameters {
-	Map<String,Object> exclusiveStartKey;
+public class DynamoDBQueryRequest extends AWSDynamoDbParameters {
 	String filterExpression;
 	String indexName;
 	String 	keyConditionExpression;
-	Boolean scanIndexForward;
-
-	public Map<String, Object> getExclusiveStartKey() {
-		return exclusiveStartKey;
-	}
+	Boolean scanIndexForward = Boolean.FALSE;
+	Boolean consistentRead = Boolean.FALSE;
 
 	public String getFilterExpression() {
 		return filterExpression;
@@ -29,20 +25,24 @@ public class QueryRequest extends AWSDynamoDbParameters {
 		return scanIndexForward;
 	}
 
+	public Boolean getConsistentRead() {
+		return consistentRead;
+	}
+
 
 	public static final class Builder {
-		Map<String,Object> exclusiveStartKey;
+		Map<String, String> expressionAttributeNames;
+		Map<String, Object> expressionAttributeValues;
 		String filterExpression;
 		String indexName;
 		String 	keyConditionExpression;
-		Boolean scanIndexForward;
-		private Map<String, String> expressionAttributeNames;
-		private Map<String, Object> expressionAttributeValues;
+		Boolean scanIndexForward = Boolean.FALSE;
+		Boolean consistentRead = Boolean.FALSE;
 
 		private Builder() {
 		}
 
-		public static Builder aQueryRequest() {
+		public static Builder aDynamoDBQueryRequest() {
 			return new Builder();
 		}
 
@@ -53,11 +53,6 @@ public class QueryRequest extends AWSDynamoDbParameters {
 
 		public Builder withExpressionAttributeValues(Map<String, Object> expressionAttributeValues) {
 			this.expressionAttributeValues = expressionAttributeValues;
-			return this;
-		}
-
-		public Builder withExclusiveStartKey(Map<String, Object> exclusiveStartKey) {
-			this.exclusiveStartKey = exclusiveStartKey;
 			return this;
 		}
 
@@ -81,16 +76,21 @@ public class QueryRequest extends AWSDynamoDbParameters {
 			return this;
 		}
 
-		public QueryRequest build() {
-			QueryRequest queryRequest = new QueryRequest();
-			queryRequest.exclusiveStartKey = this.exclusiveStartKey;
-			queryRequest.indexName = this.indexName;
-			queryRequest.expressionAttributeValues = this.expressionAttributeValues;
-			queryRequest.filterExpression = this.filterExpression;
-			queryRequest.scanIndexForward = this.scanIndexForward;
-			queryRequest.expressionAttributeNames = this.expressionAttributeNames;
-			queryRequest.keyConditionExpression = this.keyConditionExpression;
-			return queryRequest;
+		public Builder withConsistentRead(Boolean consistentRead) {
+			this.consistentRead = consistentRead;
+			return this;
+		}
+
+		public DynamoDBQueryRequest build() {
+			DynamoDBQueryRequest dynamoDBQueryRequest = new DynamoDBQueryRequest();
+			dynamoDBQueryRequest.expressionAttributeNames = this.expressionAttributeNames;
+			dynamoDBQueryRequest.scanIndexForward = this.scanIndexForward;
+			dynamoDBQueryRequest.keyConditionExpression = this.keyConditionExpression;
+			dynamoDBQueryRequest.filterExpression = this.filterExpression;
+			dynamoDBQueryRequest.indexName = this.indexName;
+			dynamoDBQueryRequest.expressionAttributeValues = this.expressionAttributeValues;
+			dynamoDBQueryRequest.consistentRead = this.consistentRead;
+			return dynamoDBQueryRequest;
 		}
 	}
 }

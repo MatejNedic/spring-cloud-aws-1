@@ -1,11 +1,10 @@
 package io.awspring.cloud.v3.dynamodb.core;
 
 import io.awspring.cloud.v3.dynamodb.core.coverter.DynamoDbConverter;
-import io.awspring.cloud.v3.dynamodb.core.mapping.BasicDynamoDbPersistenceEntity;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
 import io.awspring.cloud.v3.dynamodb.core.mapping.events.*;
 import io.awspring.cloud.v3.dynamodb.request.DynamoDBPageRequest;
-import io.awspring.cloud.v3.dynamodb.request.QueryRequest;
+import io.awspring.cloud.v3.dynamodb.request.DynamoDBQueryRequest;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -189,9 +188,11 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	}
 
 	@Override
-	public <T> EntityReadResult<List<T>> query(Class<T> entityClass, QueryRequest queryRequest, DynamoDBPageRequest dynamoDBPageRequest) {
+	public <T> EntityReadResult<List<T>> query(Class<T> entityClass, DynamoDBQueryRequest qr, DynamoDBPageRequest dynamoDBPageRequest) {
 		String tableName = getTableName(entityClass);
-		BasicDynamoDbPersistenceEntity<> basicDynamoDbPersistenceEntity = getRequiredPersistentEntity(entityClass);
+		DynamoDbPersistenceEntity basicDynamoDbPersistenceEntity = getRequiredPersistentEntity(entityClass);
+		QueryRequest queryRequest = statementFactory.query(tableName, basicDynamoDbPersistenceEntity, qr, dynamoDBPageRequest);
+		dynamoDbClient.query(queryRequest);
 		return null;
 	}
 

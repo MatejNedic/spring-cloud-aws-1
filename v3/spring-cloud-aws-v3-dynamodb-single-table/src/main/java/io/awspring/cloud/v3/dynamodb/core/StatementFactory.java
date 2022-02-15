@@ -2,9 +2,12 @@ package io.awspring.cloud.v3.dynamodb.core;
 
 import io.awspring.cloud.v3.dynamodb.core.coverter.DynamoDbConverter;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
+import io.awspring.cloud.v3.dynamodb.request.DynamoDBPageRequest;
+import io.awspring.cloud.v3.dynamodb.request.DynamoDBQueryRequest;
 import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
 import java.util.HashMap;
@@ -171,7 +174,7 @@ public class StatementFactory {
 		Map<String, AttributeValueUpdate> attributeUpdates = new LinkedHashMap<>();
 		dynamoDbConverter.update(objectToUpdate, keys, entity, attributeUpdates);
 
-		UpdateItemRequest.Builder builder = UpdateItemRequest.builder().tableName(tableName).key(keys);
+		UpdateItemRequest.Builder builder = UpdateItemRequest.builder().tableName(tableName).key(keys).attributeUpdates(attributeUpdates);
 		if (conditionExpression != null) {
 			builder.conditionExpression(conditionExpression);
 		}
@@ -215,5 +218,36 @@ public class StatementFactory {
 			});
 		}
 		return builder.build();
+	}
+
+	public QueryRequest query(String tableName, DynamoDbPersistenceEntity entity, DynamoDBQueryRequest qr, DynamoDBPageRequest dynamoDBPageRequest) {
+		Assert.notNull(tableName, "TableName must not be null");
+		Assert.notNull(qr, "DynamoDBQueryRequest must not be null");
+		Assert.notNull(entity, "DynamoDbPersistenceEntity must not be null");
+		Assert.notNull(dynamoDBPageRequest, "DynamoDBPageRequest must not be null");
+		Map<String, AttributeValue> exclusiveStartKeys = new HashMap<>(dynamoDBPageRequest.getLastEvaluatedKey().size());
+		dynamoDBPageRequest.getLastEvaluatedKey().forEach((k,v) -> {
+			exclusiveStartKeys.put(k, dynamoDbConverter.convertToDynamoDbType(v, entity));
+		});
+		QueryRequest.Builder queryRequestBuilder = QueryRequest.builder().select(Select.ALL_ATTRIBUTES);
+		queryRequestBuilder.consistentRead(qr.getConsistentRead()).scanIndexForward(qr.getScanIndexForward());
+		queryRequestBuilder.limit(dynamoDBPageRequest.getLimit()).exclusiveStartKey(exclusiveStartKeys);
+		if (qr.getExpressionAttributeNames() != null) {
+			queryRequestBuilder.expressionAttributeNames(qr.getExpressionAttributeNames());
+		}
+		if (qr.getExpressionAttributeValues() != null) {
+			Map<String, AttributeValue> mapOfExpressionAttributeValues = new HashMap<>(qr.getExpressionAttributeValues().size());
+			qr.getExpressionAttributeValues().forEach((k,v) -> {
+				mapOfExpressionAttributeValues.put(k, dynamoDbConverter.convertToDynamoDbType(v, entity));
+			});
+			queryRequestBuilder.expressionAttributeValues(mapOfExpressionAttributeValues);
+		}
+		if (StringUtils.hasLength(qr.getIndexName())) {
+			queryRequestBuilder.indexName(qr.getIndexName());
+		}
+		if (StringUtils.hasLength(qr.getKeyConditionExpression())) {
+			queryRequestBuilder.keyConditionExpression(qr.getKeyConditionExpression());
+		}
+		return queryRequestBuilder.build();
 	}
 }
