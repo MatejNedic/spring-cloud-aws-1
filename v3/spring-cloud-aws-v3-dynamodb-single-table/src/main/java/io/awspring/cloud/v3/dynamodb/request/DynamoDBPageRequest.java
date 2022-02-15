@@ -1,20 +1,38 @@
 package io.awspring.cloud.v3.dynamodb.request;
 
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import java.util.Map;
 
-public class DynamoDBPageRequest extends PageRequest {
+public class DynamoDBPageRequest {
+
+	private Integer limit;
+	private Map<String, Object> lastEvaluatedKey;
 
 
+	public static DynamoDBPageRequest of(Integer limit, Map<String,Object> lastEvaluatedKey) {
+		DynamoDBPageRequest dynamoDBPageRequest = new DynamoDBPageRequest();
+		dynamoDBPageRequest.limit = limit;
+		dynamoDBPageRequest.lastEvaluatedKey = lastEvaluatedKey;
+		return dynamoDBPageRequest;
+	}
 
-	/**
-	 * Creates a new {@link PageRequest} with sort parameters applied.
-	 *
-	 * @param page zero-based page index, must not be negative.
-	 * @param size the size of the page to be returned, must be greater than 0.
-	 * @param sort must not be {@literal null}, use {@link Sort#unsorted()} instead.
-	 */
-	protected DynamoDBPageRequest(int page, int size, Sort sort) {
-		super(page, size, sort);
+
+	public static DynamoDBPageRequest of(Integer limit) {
+		DynamoDBPageRequest dynamoDBPageRequest = new DynamoDBPageRequest();
+		dynamoDBPageRequest.limit = limit;
+		return dynamoDBPageRequest;
+	}
+
+	public static DynamoDBPageRequest of() {
+		DynamoDBPageRequest dynamoDBPageRequest = new DynamoDBPageRequest();
+		dynamoDBPageRequest.limit = 20;
+		return dynamoDBPageRequest;
+	}
+
+	public Integer getLimit() {
+		return limit;
+	}
+
+	public Map<String, Object> getLastEvaluatedKey() {
+		return lastEvaluatedKey;
 	}
 }

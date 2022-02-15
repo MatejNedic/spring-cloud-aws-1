@@ -1,6 +1,7 @@
 package io.awspring.cloud.v3.dynamodb.core;
 
 import io.awspring.cloud.v3.dynamodb.core.coverter.DynamoDbConverter;
+import io.awspring.cloud.v3.dynamodb.request.DynamoDBPageRequest;
 import io.awspring.cloud.v3.dynamodb.request.QueryRequest;
 import org.springframework.data.domain.Pageable;
 
@@ -22,7 +23,7 @@ public interface DynamoDbOperations {
 
 	DynamoDbConverter getConverter();
 
-	<T> EntityReadResult<List<T>> query(Class<T> entityClass, QueryRequest queryRequest, Pageable pageable);
+	<T> EntityReadResult<List<T>> query(Class<T> entityClass, QueryRequest queryRequest, DynamoDBPageRequest dynamoDBPageRequest);
 
 	<T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass, List<Object> values);
 	<T> EntityReadResult<List<T>> executeStatement(String statement, String nextToken, Class<T> entityClass);

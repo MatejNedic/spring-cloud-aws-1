@@ -1,8 +1,11 @@
 package io.awspring.cloud.v3.dynamodb.core;
 
 import io.awspring.cloud.v3.dynamodb.core.coverter.DynamoDbConverter;
+import io.awspring.cloud.v3.dynamodb.core.mapping.BasicDynamoDbPersistenceEntity;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
 import io.awspring.cloud.v3.dynamodb.core.mapping.events.*;
+import io.awspring.cloud.v3.dynamodb.request.DynamoDBPageRequest;
+import io.awspring.cloud.v3.dynamodb.request.QueryRequest;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -183,6 +186,13 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	@Override
 	public DynamoDbConverter getConverter() {
 		return this.converter;
+	}
+
+	@Override
+	public <T> EntityReadResult<List<T>> query(Class<T> entityClass, QueryRequest queryRequest, DynamoDBPageRequest dynamoDBPageRequest) {
+		String tableName = getTableName(entityClass);
+		BasicDynamoDbPersistenceEntity<> basicDynamoDbPersistenceEntity = getRequiredPersistentEntity(entityClass);
+		return null;
 	}
 
 	@Override
