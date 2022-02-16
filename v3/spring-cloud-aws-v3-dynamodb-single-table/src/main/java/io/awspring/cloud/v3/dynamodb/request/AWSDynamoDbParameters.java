@@ -15,4 +15,32 @@ public class AWSDynamoDbParameters {
 	}
 
 
+	public static final class Builder {
+		Map<String, String> expressionAttributeNames;
+		Map<String, Object> expressionAttributeValues;
+
+		private Builder() {
+		}
+
+		public static Builder anAWSDynamoDbParameters() {
+			return new Builder();
+		}
+
+		public Builder withExpressionAttributeNames(Map<String, String> expressionAttributeNames) {
+			this.expressionAttributeNames = expressionAttributeNames;
+			return this;
+		}
+
+		public Builder withExpressionAttributeValues(Map<String, Object> expressionAttributeValues) {
+			this.expressionAttributeValues = expressionAttributeValues;
+			return this;
+		}
+
+		public AWSDynamoDbParameters build() {
+			AWSDynamoDbParameters aWSDynamoDbParameters = new AWSDynamoDbParameters();
+			aWSDynamoDbParameters.expressionAttributeValues = this.expressionAttributeValues;
+			aWSDynamoDbParameters.expressionAttributeNames = this.expressionAttributeNames;
+			return aWSDynamoDbParameters;
+		}
+	}
 }

@@ -142,6 +142,10 @@ public class DynamoDbTemplateTest extends LocalStackTestContainer {
 
 		EntityReadResult<List<MappingDynamoDbConverterTest.TestClass>> list = dynamoDbTemplate.executeStatement("Select * from SomeTableName", null, MappingDynamoDbConverterTest.TestClass.class);
 		assertThat(list.getEntity().size()).isEqualTo(1L);
+		assertThat(list.getEntity().get(0).getId()).isEqualTo(testClassToBeInserted.getId());
+		assertThat(list.getEntity().get(0).getMyList()).isEqualTo(testClassToBeInserted.getMyList());
+		assertThat(list.getEntity().get(0).getTelephoneNumber()).isEqualTo(testClassToBeInserted.getTelephoneNumber());
+		assertThat(list.getEntity().get(0).getValue()).isEqualTo(testClassToBeInserted.getValue());
 	}
 
 

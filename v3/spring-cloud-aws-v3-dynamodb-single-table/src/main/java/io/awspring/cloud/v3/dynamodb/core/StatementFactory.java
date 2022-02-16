@@ -2,8 +2,10 @@ package io.awspring.cloud.v3.dynamodb.core;
 
 import io.awspring.cloud.v3.dynamodb.core.coverter.DynamoDbConverter;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
+import io.awspring.cloud.v3.dynamodb.request.DynamoDBConditionRequest;
 import io.awspring.cloud.v3.dynamodb.request.DynamoDBPageRequest;
 import io.awspring.cloud.v3.dynamodb.request.DynamoDBQueryRequest;
+import io.awspring.cloud.v3.dynamodb.request.DynamoDBUpdateExpressionRequest;
 import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 import org.springframework.util.Assert;
@@ -36,12 +38,11 @@ public class StatementFactory {
 		DynamoDbPersistenceEntity<?> persistentEntity = dynamoDbConverter.getMappingContext()
 			.getRequiredPersistentEntity(objectToInsert.getClass());
 
-		return insert(objectToInsert, persistentEntity, persistentEntity.getTableName(), null, null, null);
+		return insert(objectToInsert, persistentEntity, persistentEntity.getTableName(), new DynamoDBConditionRequest());
 	}
 
 	PutItemRequest insert(Object objectToInsert,
-						  DynamoDbPersistenceEntity<?> persistentEntity, String tableName, String conditionExpression,
-						  Map<String, String> expressionAttributeNames, Map<String, Object> expressionAttributeValues) {
+						  DynamoDbPersistenceEntity<?> persistentEntity, String tableName, DynamoDBConditionRequest dynamoDBConditionRequest) {
 
 		Assert.notNull(tableName, "TableName must not be null");
 		Assert.notNull(objectToInsert, "Object to insert must not be null");
@@ -51,15 +52,15 @@ public class StatementFactory {
 		Map<String, AttributeValue> object = new LinkedHashMap<>();
 		dynamoDbConverter.write(objectToInsert, object, persistentEntity);
 		PutItemRequest.Builder builder = PutItemRequest.builder().item(object).tableName(tableName);
-		if (conditionExpression != null) {
-			builder.conditionExpression(conditionExpression);
+		if (dynamoDBConditionRequest.getConditionExpression() != null) {
+			builder.conditionExpression(dynamoDBConditionRequest.getConditionExpression());
 		}
-		if (expressionAttributeNames != null) {
-			builder.expressionAttributeNames(expressionAttributeNames);
+		if (dynamoDBConditionRequest.getExpressionAttributeNames() != null) {
+			builder.expressionAttributeNames(dynamoDBConditionRequest.getExpressionAttributeNames());
 		}
-		if (expressionAttributeValues != null) {
-			Map<String, AttributeValue> expressionAttributesToBuild = new HashMap<>(expressionAttributeValues.size());
-			expressionAttributeValues.forEach((k, v) -> {
+		if (dynamoDBConditionRequest.getExpressionAttributeValues() != null) {
+			Map<String, AttributeValue> expressionAttributesToBuild = new HashMap<>(dynamoDBConditionRequest.getExpressionAttributeValues().size());
+			dynamoDBConditionRequest.getExpressionAttributeValues().forEach((k, v) -> {
 				expressionAttributesToBuild.put(k, dynamoDbConverter.convertToDynamoDbType(v, persistentEntity));
 			});
 		}
@@ -92,7 +93,7 @@ public class StatementFactory {
 		return DeleteItemRequest.builder().tableName(tableName).key(keys).build();
 	}
 
-	DeleteItemRequest delete(Map<String, Object> keys, DynamoDbPersistenceEntity<?> requiredPersistentEntity, String tableName, String conditionExpression, Map<String, String> expressionAttributeNames, Map<String, Object> expressionAttributeValues) {
+	DeleteItemRequest delete(Map<String, Object> keys, DynamoDbPersistenceEntity<?> requiredPersistentEntity, String tableName, DynamoDBConditionRequest dynamoDBConditionRequest) {
 		Assert.notNull(tableName, "TableName must not be null");
 		Assert.notNull(keys, "Keys to delete must not be null");
 		Assert.notNull(requiredPersistentEntity, "DynamoDbPersistenceEntity must not be null");
@@ -102,15 +103,15 @@ public class StatementFactory {
 			keysToBeUsed.put(k, dynamoDbConverter.convertToDynamoDbType(v, requiredPersistentEntity));
 		});
 		DeleteItemRequest.Builder deleteItemRequestBuilder = DeleteItemRequest.builder().tableName(tableName).key(keysToBeUsed);
-		if (conditionExpression != null) {
-			deleteItemRequestBuilder.conditionExpression(conditionExpression);
+		if (dynamoDBConditionRequest.getConditionExpression() != null) {
+			deleteItemRequestBuilder.conditionExpression(dynamoDBConditionRequest.getConditionExpression());
 		}
-		if (expressionAttributeNames != null) {
-			deleteItemRequestBuilder.expressionAttributeNames(expressionAttributeNames);
+		if (dynamoDBConditionRequest.getExpressionAttributeNames() != null) {
+			deleteItemRequestBuilder.expressionAttributeNames(dynamoDBConditionRequest.getExpressionAttributeNames());
 		}
-		if (expressionAttributeValues != null) {
-			Map<String, AttributeValue> expressionAttributesToBuild = new HashMap<>(expressionAttributeValues.size());
-			expressionAttributeValues.forEach((k, v) -> {
+		if (dynamoDBConditionRequest.getExpressionAttributeValues() != null) {
+			Map<String, AttributeValue> expressionAttributesToBuild = new HashMap<>(dynamoDBConditionRequest.getExpressionAttributeValues().size());
+			dynamoDBConditionRequest.getExpressionAttributeValues().forEach((k, v) -> {
 				expressionAttributesToBuild.put(k, dynamoDbConverter.convertToDynamoDbType(v, requiredPersistentEntity));
 			});
 		}
@@ -162,9 +163,7 @@ public class StatementFactory {
 			.key(keys).build();
 	}
 
-	UpdateItemRequest update(Object objectToUpdate, String tableName, DynamoDbPersistenceEntity<?> entity,
-							 String conditionExpression, Map<String, String> expressionAttributeNames,
-							 Map<String, Object> expressionAttributeValues) {
+	UpdateItemRequest update(Object objectToUpdate, String tableName, DynamoDbPersistenceEntity<?> entity) {
 		Assert.notNull(tableName, "TableName must not be null");
 		Assert.notNull(objectToUpdate, "ObjectToUpdate must not be null");
 		Assert.notNull(entity, "DynamoDbPersistenceEntity must not be null");
@@ -174,50 +173,7 @@ public class StatementFactory {
 		Map<String, AttributeValueUpdate> attributeUpdates = new LinkedHashMap<>();
 		dynamoDbConverter.update(objectToUpdate, keys, entity, attributeUpdates);
 
-		UpdateItemRequest.Builder builder = UpdateItemRequest.builder().tableName(tableName).key(keys).attributeUpdates(attributeUpdates);
-		if (conditionExpression != null) {
-			builder.conditionExpression(conditionExpression);
-		}
-		if (expressionAttributeNames != null) {
-			builder.expressionAttributeNames(expressionAttributeNames);
-		}
-		if (expressionAttributeValues != null) {
-			Map<String, AttributeValue> expressionAttributesToBuild = new HashMap<>(expressionAttributeValues.size());
-			expressionAttributeValues.forEach((k, v) -> {
-				expressionAttributesToBuild.put(k, dynamoDbConverter.convertToDynamoDbType(v, entity));
-			});
-		}
-		return builder.build();
-	}
-
-
-	UpdateItemRequest update(Map<String, Object> keys, String updateExpression, String conditionExpression,
-							 Map<String, String> expressionAttributeNames, String tableName,
-							 DynamoDbPersistenceEntity<?> entity, Map<String, Object> expressionAttributeValues) {
-		Assert.notNull(tableName, "TableName must not be null");
-		Assert.notNull(keys, "Keys must not be null");
-		Assert.notNull(entity, "DynamoDbPersistenceEntity must not be null");
-		Assert.notNull(entity, "UpdateExpression must not be null");
-
-		Map<String, AttributeValue> keysToBeUsed = new HashMap<>(keys.size());
-		keys.forEach((k, v) -> {
-			keysToBeUsed.put(k, dynamoDbConverter.convertToDynamoDbType(v, entity));
-		});
-
-		UpdateItemRequest.Builder builder = UpdateItemRequest.builder().tableName(tableName).key(keysToBeUsed).updateExpression(updateExpression).returnValues(ReturnValue.ALL_NEW);
-		if (conditionExpression != null) {
-			builder.conditionExpression(conditionExpression);
-		}
-		if (expressionAttributeNames != null) {
-			builder.expressionAttributeNames(expressionAttributeNames);
-		}
-		if (expressionAttributeValues != null) {
-			Map<String, AttributeValue> expressionAttributesToBuild = new HashMap<>(expressionAttributeValues.size());
-			expressionAttributeValues.forEach((k, v) -> {
-				expressionAttributesToBuild.put(k, dynamoDbConverter.convertToDynamoDbType(v, entity));
-			});
-		}
-		return builder.build();
+		return UpdateItemRequest.builder().tableName(tableName).key(keys).attributeUpdates(attributeUpdates).build();
 	}
 
 	public QueryRequest query(String tableName, DynamoDbPersistenceEntity entity, DynamoDBQueryRequest qr, DynamoDBPageRequest dynamoDBPageRequest) {
@@ -249,5 +205,32 @@ public class StatementFactory {
 			queryRequestBuilder.keyConditionExpression(qr.getKeyConditionExpression());
 		}
 		return queryRequestBuilder.build();
+	}
+
+	public UpdateItemRequest update(Map<String, Object> keys, DynamoDBUpdateExpressionRequest request, String tableName, DynamoDbPersistenceEntity entity) {
+		Assert.notNull(tableName, "TableName must not be null");
+		Assert.notNull(keys, "Keys must not be null");
+		Assert.notNull(entity, "DynamoDbPersistenceEntity must not be null");
+		Assert.notNull(request.getUpdateExpression(), "UpdateExpression must not be null");
+
+		Map<String, AttributeValue> keysToBeUsed = new HashMap<>(keys.size());
+		keys.forEach((k, v) -> {
+			keysToBeUsed.put(k, dynamoDbConverter.convertToDynamoDbType(v, entity));
+		});
+
+		UpdateItemRequest.Builder builder = UpdateItemRequest.builder().tableName(tableName).key(keysToBeUsed).updateExpression(request.getUpdateExpression()).returnValues(ReturnValue.ALL_NEW);
+		if (request.getConditionExpression() != null) {
+			builder.conditionExpression(request.getConditionExpression());
+		}
+		if (request.getExpressionAttributeNames() != null) {
+			builder.expressionAttributeNames(request.getExpressionAttributeNames());
+		}
+		if (request.getExpressionAttributeValues() != null) {
+			Map<String, AttributeValue> expressionAttributesToBuild = new HashMap<>(request.getExpressionAttributeValues().size());
+			request.getExpressionAttributeValues().forEach((k, v) -> {
+				expressionAttributesToBuild.put(k, dynamoDbConverter.convertToDynamoDbType(v, entity));
+			});
+		}
+		return builder.build();
 	}
 }

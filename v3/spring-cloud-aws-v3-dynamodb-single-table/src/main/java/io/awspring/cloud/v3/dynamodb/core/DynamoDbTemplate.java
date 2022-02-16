@@ -3,8 +3,10 @@ package io.awspring.cloud.v3.dynamodb.core;
 import io.awspring.cloud.v3.dynamodb.core.coverter.DynamoDbConverter;
 import io.awspring.cloud.v3.dynamodb.core.mapping.DynamoDbPersistenceEntity;
 import io.awspring.cloud.v3.dynamodb.core.mapping.events.*;
+import io.awspring.cloud.v3.dynamodb.request.DynamoDBConditionRequest;
 import io.awspring.cloud.v3.dynamodb.request.DynamoDBPageRequest;
 import io.awspring.cloud.v3.dynamodb.request.DynamoDBQueryRequest;
+import io.awspring.cloud.v3.dynamodb.request.DynamoDBUpdateExpressionRequest;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -129,28 +131,21 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		return request;
 	}
 
-
 	@Override
-	public <T> EntityWriteResult<T> save(T entity, String conditionExpression) {
-		return save(entity, conditionExpression, null, null);
+	public <T> EntityWriteResult<T> save(T entity) {
+		return save(entity, new DynamoDBConditionRequest());
 	}
 
 	@Override
-	public <T> EntityWriteResult<T> save(T entity, String conditionExpression, Map<String, String> expressionAttributeNames,
-										 Map<String, Object> expressionAttributeValues) {
+	public <T> EntityWriteResult<T> save(T entity, DynamoDBConditionRequest dynamoDBConditionRequest) {
 		String tableName = getTableName(entity.getClass());
 		EntityOperations.AdaptibleEntity<T> source = getEntityOperations().forEntity(entity, getConverter().getConversionService());
 		T entityToSave = maybeCallBeforeSave(entity, tableName);
-		PutItemRequest request = statementFactory.insert(entityToSave, source.getPersistentEntity(), tableName, conditionExpression, expressionAttributeNames, expressionAttributeValues);
+		PutItemRequest request = statementFactory.insert(entityToSave, source.getPersistentEntity(), tableName, dynamoDBConditionRequest);
 		maybeEmitEvent(new DynamoDbBeforeSaveEvent<T>(entity, tableName));
 		PutItemResponse putItemResponse = dynamoDbClient.putItem(request);
 		maybeEmitEvent(new DynamoDbAfterSaveEvent<>(entityToSave, tableName));
 		return EntityWriteResult.of(putItemResponse.attributes(), entity);
-	}
-
-	@Override
-	public <T> EntityWriteResult<T> save(T entity) {
-		return save(entity, null);
 	}
 
 
@@ -165,18 +160,13 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 
 	@Override
 	public <T> void delete(Class<T> entityClass, Map<String, Object> keys) {
-		delete(entityClass, keys, null);
+		delete(entityClass, keys, new DynamoDBConditionRequest());
 	}
 
 	@Override
-	public <T> void delete(Class<T> entityClass, Map<String, Object> keys, String conditionalExpression) {
-		delete(entityClass, keys, conditionalExpression, null, null);
-	}
-
-	@Override
-	public <T> void delete(Class<T> entityClass, Map<String, Object> keys, String conditionExpression, Map<String, String> expressionAttributeNames, Map<String, Object> expressionAttributeValues) {
+	public <T> void delete(Class<T> entityClass, Map<String, Object> keys, DynamoDBConditionRequest dynamoDBConditionRequest) {
 		String tableName = getTableName(entityClass.getClass());
-		DeleteItemRequest request = statementFactory.delete(keys, getRequiredPersistentEntity(entityClass.getClass()), tableName, conditionExpression, expressionAttributeNames, expressionAttributeValues);
+		DeleteItemRequest request = statementFactory.delete(keys, getRequiredPersistentEntity(entityClass.getClass()), tableName, dynamoDBConditionRequest);
 		maybeEmitEvent(new DynamoDbBeforeDeleteEvent<>(entityClass, tableName));
 		dynamoDbClient.deleteItem(request);
 		maybeEmitEvent(new DynamoDbAfterDeleteEvent<>(entityClass, tableName));
@@ -192,7 +182,7 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 		String tableName = getTableName(entityClass);
 		DynamoDbPersistenceEntity basicDynamoDbPersistenceEntity = getRequiredPersistentEntity(entityClass);
 		QueryRequest queryRequest = statementFactory.query(tableName, basicDynamoDbPersistenceEntity, qr, dynamoDBPageRequest);
-		dynamoDbClient.query(queryRequest);
+		QueryResponse queryResponse = dynamoDbClient.query(queryRequest);
 		return null;
 	}
 
@@ -226,26 +216,10 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	}
 
 	public <T> EntityWriteResult<T> update(T entity) {
-		return update(entity, null);
-	}
 
-	@Override
-	public <T> EntityWriteResult<T> update(T entity, String conditionExpression) {
-		return update(entity, conditionExpression, null);
-	}
-
-	@Override
-	public <T> EntityWriteResult<T> update(T entity, String conditionExpression, Map<String, String> expressionAttributeNames) {
-		return update(entity, conditionExpression, expressionAttributeNames, null);
-	}
-
-	@Override
-	public <T> EntityWriteResult<T> update(T entity, String conditionExpression, Map<String,
-		String> expressionAttributeNames, Map<String, Object> expressionAttributeValues) {
 		String tableName = getTableName(entity.getClass());
 		DynamoDbPersistenceEntity dynamoDbPersistenceEntity = getRequiredPersistentEntity(entity.getClass());
-		UpdateItemRequest updateItemRequest = statementFactory.update(entity, tableName, dynamoDbPersistenceEntity,
-			conditionExpression, expressionAttributeNames, expressionAttributeValues);
+		UpdateItemRequest updateItemRequest = statementFactory.update(entity, tableName, dynamoDbPersistenceEntity);
 		maybeEmitEvent(new DynamoDbBeforeUpdateEvent<>(entity, tableName));
 		UpdateItemResponse updateItemResponse = dynamoDbClient.updateItem(updateItemRequest);
 		maybeEmitEvent(new DynamoDbAfterUpdateEvent<>(entity, tableName));
@@ -253,19 +227,16 @@ public class DynamoDbTemplate implements DynamoDbOperations, ApplicationContextA
 	}
 
 	@Override
-	public <T> EntityWriteResult<T> update(Map<String, Object> keys, String updateExpression, String conditionExpression,
-										   Map<String, String> expressionAttributeNames, Map<String, Object> expressionAttributeValues,
-										   Class<T> entityClass) {
+	public <T> EntityWriteResult<T> update(Map<String, Object> keys, DynamoDBUpdateExpressionRequest dynamoDBUpdateExpressionRequest, Class<T> entityClass) {
 		String tableName = getTableName(entityClass.getClass());
 		DynamoDbPersistenceEntity dynamoDbPersistenceEntity = getRequiredPersistentEntity(entityClass.getClass());
-		UpdateItemRequest updateItemRequest = statementFactory.update(keys, updateExpression,
-			conditionExpression, expressionAttributeNames, tableName, dynamoDbPersistenceEntity, expressionAttributeValues);
+		UpdateItemRequest updateItemRequest = statementFactory.update(keys, dynamoDBUpdateExpressionRequest, tableName, dynamoDbPersistenceEntity);
 		maybeEmitEvent(new DynamoDbBeforeUpdateEvent<>(entityClass, tableName));
 		UpdateItemResponse updateItemResponse = dynamoDbClient.updateItem(updateItemRequest);
 		maybeEmitEvent(new DynamoDbAfterUpdateEvent<>(entityClass, tableName));
 		return EntityWriteResult.of(updateItemResponse.attributes(), converter.read(entityClass, updateItemResponse.attributes()));
-	}
 
+	}
 
 	public String getTableName(Class<?> entityClass) {
 		return getEntityOperations().getTableName(entityClass);
