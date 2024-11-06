@@ -54,6 +54,7 @@
 |spring.cloud.aws.s3.enabled | `+++true+++` | Enables S3 integration.
 |spring.cloud.aws.s3.endpoint |  | Overrides the default endpoint.
 |spring.cloud.aws.s3.path-style-access-enabled |  | Option to enable using path style access for accessing S3 objects instead of DNS style access. DNS style access is preferred as it will result in better load balancing when accessing S3.
+|spring.cloud.aws.s3.plugin.enable-fallback | `+++false+++` | If set to false if Access Grants does not find/return permissions, S3Client won't try to determine if policies grant access If set to true fallback policies S3/IAM will be evaluated.
 |spring.cloud.aws.s3.region |  | Overrides the default region.
 |spring.cloud.aws.s3.transfer-manager.follow-symbolic-links |  | Specifies whether to follow symbolic links when traversing the file tree in `S3TransferManager#uploadDirectory` operation.
 |spring.cloud.aws.s3.transfer-manager.max-depth |  | Specifies the maximum number of levels of directories to visit in `S3TransferManager#uploadDirectory` operation.
