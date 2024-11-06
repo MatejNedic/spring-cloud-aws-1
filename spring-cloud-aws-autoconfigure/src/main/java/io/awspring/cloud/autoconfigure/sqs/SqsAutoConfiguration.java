@@ -16,6 +16,7 @@
 package io.awspring.cloud.autoconfigure.sqs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.awspring.cloud.autoconfigure.AwsAsyncClientCustomizer;
 import io.awspring.cloud.autoconfigure.core.AwsClientBuilderConfigurer;
 import io.awspring.cloud.autoconfigure.core.AwsClientCustomizer;
 import io.awspring.cloud.autoconfigure.core.AwsConnectionDetails;
@@ -24,11 +25,11 @@ import io.awspring.cloud.autoconfigure.core.RegionProviderAutoConfiguration;
 import io.awspring.cloud.sqs.config.SqsBootstrapConfiguration;
 import io.awspring.cloud.sqs.config.SqsListenerConfigurer;
 import io.awspring.cloud.sqs.config.SqsMessageListenerContainerFactory;
+import io.awspring.cloud.sqs.listener.SqsContainerOptionsBuilder;
 import io.awspring.cloud.sqs.listener.errorhandler.AsyncErrorHandler;
 import io.awspring.cloud.sqs.listener.errorhandler.ErrorHandler;
 import io.awspring.cloud.sqs.listener.interceptor.AsyncMessageInterceptor;
 import io.awspring.cloud.sqs.listener.interceptor.MessageInterceptor;
-import io.awspring.cloud.sqs.listener.SqsContainerOptionsBuilder;
 import io.awspring.cloud.sqs.operations.SqsTemplate;
 import io.awspring.cloud.sqs.operations.SqsTemplateBuilder;
 import io.awspring.cloud.sqs.support.converter.MessagingMessageConverter;
@@ -75,15 +76,20 @@ public class SqsAutoConfiguration {
 	@Bean
 	public SqsAsyncClient sqsAsyncClient(AwsClientBuilderConfigurer awsClientBuilderConfigurer,
 			ObjectProvider<AwsClientCustomizer<SqsAsyncClientBuilder>> configurer,
-			ObjectProvider<AwsConnectionDetails> connectionDetails) {
-		return awsClientBuilderConfigurer.configure(SqsAsyncClient.builder(), this.sqsProperties,
-				connectionDetails.getIfAvailable(), configurer.getIfAvailable()).build();
+			ObjectProvider<AwsConnectionDetails> connectionDetails,
+			ObjectProvider<SqsAsyncClientCustomizer> sqsAsyncClientCustomizers,
+			ObjectProvider<AwsAsyncClientCustomizer> awsAsyncClientCustomizers) {
+		return awsClientBuilderConfigurer.configureAsyncClient(SqsAsyncClient.builder(), this.sqsProperties,
+				connectionDetails.getIfAvailable(), configurer.getIfAvailable(),
+				sqsAsyncClientCustomizers.orderedStream(), awsAsyncClientCustomizers.orderedStream()).build();
 	}
 
 	@ConditionalOnMissingBean
 	@Bean
-	public SqsTemplate sqsTemplate(SqsAsyncClient sqsAsyncClient, ObjectProvider<ObjectMapper> objectMapperProvider, MessagingMessageConverter<Message> messageConverter) {
-		SqsTemplateBuilder builder = SqsTemplate.builder().sqsAsyncClient(sqsAsyncClient).messageConverter(messageConverter);
+	public SqsTemplate sqsTemplate(SqsAsyncClient sqsAsyncClient, ObjectProvider<ObjectMapper> objectMapperProvider,
+			MessagingMessageConverter<Message> messageConverter) {
+		SqsTemplateBuilder builder = SqsTemplate.builder().sqsAsyncClient(sqsAsyncClient)
+				.messageConverter(messageConverter);
 		objectMapperProvider.ifAvailable(om -> setMapperToConverter(messageConverter, om));
 		if (sqsProperties.getQueueNotFoundStrategy() != null) {
 			builder.configure((options) -> options.queueNotFoundStrategy(sqsProperties.getQueueNotFoundStrategy()));
@@ -97,8 +103,7 @@ public class SqsAutoConfiguration {
 			ObjectProvider<SqsAsyncClient> sqsAsyncClient, ObjectProvider<AsyncErrorHandler<Object>> asyncErrorHandler,
 			ObjectProvider<ErrorHandler<Object>> errorHandler,
 			ObjectProvider<AsyncMessageInterceptor<Object>> asyncInterceptors,
-			ObjectProvider<MessageInterceptor<Object>> interceptors,
-			ObjectProvider<ObjectMapper> objectMapperProvider,
+			ObjectProvider<MessageInterceptor<Object>> interceptors, ObjectProvider<ObjectMapper> objectMapperProvider,
 			MessagingMessageConverter<?> messagingMessageConverter) {
 
 		SqsMessageListenerContainerFactory<Object> factory = new SqsMessageListenerContainerFactory<>();
