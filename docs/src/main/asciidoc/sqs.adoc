@@ -11,6 +11,8 @@ Compared to JMS or other message services Amazon SQS has limitations that should
 Spring Cloud AWS has dedicated support to transfer Java objects with Amazon SQS messages by converting them to JSON.
 * Amazon SQS has a maximum message size of 1MiB per message, so bigger messages will fail to be sent.
 
+NOTE: Since 4.1.0 Spring Cloud AWS SQS also supports SQS-compatible brokers such as Yandex Message Queue. See <<sqs-compatible-brokers-support>>.
+
 A Spring Boot starter is provided to auto-configure SQS integration beans.
 Maven coordinates, using <<index.adoc#bill-of-materials, Spring Cloud AWS BOM>>:
 
@@ -330,6 +332,8 @@ Message conversion by default is handled by a `SqsMessagingMessageConverter` ins
 NOTE: `SqsMessagingMessageConverter` is using Jackson 3 under the hood. If you are interested in using Jackson 2 you should be configuring `LegacyJackson2SqsMessagingMessageConverter`.
 When `LegacyJackson2SqsMessagingMessageConverter` is used you have to configure `MappingJackson2MessageConverter`.
 
+NOTE: When using Spring Boot's auto-configuration, providing a `JsonMapper` bean will automatically configure it for message conversion.
+
 A custom `MessagingMessageConverter` implementation can be provided in the `SqsTemplate.builder()`:
 
 ```java
@@ -354,7 +358,22 @@ SqsOperations template = SqsTemplate
     .buildSyncTemplate();
 ```
 
-The Jackson 2 specific  `LegacyJackson2SqsMessagingMessageConverter` instance can also be configured in the builder:
+To use a custom `JsonMapper` with `SqsTemplate`, create a `SqsMessagingMessageConverter` with the desired `JsonMapper` and provide it via `messageConverter()`:
+
+```java
+JsonMapper customMapper = JsonMapper.builder()
+    .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+    .build();
+SqsMessagingMessageConverter converter = new SqsMessagingMessageConverter(customMapper);
+
+SqsOperations template = SqsTemplate
+    .builder()
+    .sqsAsyncClient(sqsAsyncClient)
+    .messageConverter(converter)
+    .buildSyncTemplate();
+```
+
+The Jackson 2 specific `LegacyJackson2SqsMessagingMessageConverter` instance can also be configured in the builder:
 
 ```java
 SqsOperations template = SqsTemplate
@@ -384,6 +403,29 @@ In case type mapping information is not available, the payload class can be spec
 Optional<Message<SampleRecord>> receivedMessage = template
 			.receive(queue, SampleRecord.class);
 ```
+
+[[sqs-compatible-brokers-support]]
+==== SQS-Compatible Brokers Support
+
+By default, Spring Cloud AWS SQS expects the message ID returned by SQS to be a valid UUID.
+If a non-UUID message ID is received, an error is thrown with instructions to enable non-UUID support.
+
+The raw provider message ID is always stored in the `Sqs_RawMessageId` header, regardless of whether UUID conversion is enabled or disabled.
+Access the raw ID via `MessageHeaderUtils.getRawMessageId(message)`.
+
+To enable non-UUID message ID support (e.g., for Yandex Message Queue or other SQS-compatible providers):
+
+[source,properties]
+----
+spring.cloud.aws.sqs.convert-message-id-to-uuid=false
+----
+
+When disabled:
+
+* **Receive side**: A deterministic UUID derived from the raw ID is used as the Spring `MessageHeaders.ID`.
+* **Send side**: If the send response contains a non-UUID message ID,
+  `SendResult.messageId()` returns a deterministic UUID and the raw ID is available
+  in `SendResult.additionalInformation()` under the `SqsTemplateParameters.SQS_RAW_MESSAGE_ID_PARAMETER_NAME` key.
 
 === Receiving Messages
 
@@ -451,6 +493,7 @@ SqsTemplate.builder().configure(options -> options.acknowledgementMode(TemplateA
 ```
 
 If an error occurs during acknowledgement, a `SqsAcknowledgementException` is thrown, containing both the messages that were successfully acknowledged and those which failed.
+See <<sqs-acknowledgement-result-callback>> for details on inspecting partial failure results and the fail-safe correlation behavior.
 
 To acknowledge messages received with `MANUAL` acknowledgement, the `Acknowledgement#acknowledge` and `Acknowledgement#acknowledgeAsync` methods can be used.
 
@@ -1630,14 +1673,47 @@ public SqsMessageListenerContainerFactory<Object> defaultSqsListenerContainerFac
 ----
 === Message Conversion and Payload Deserialization
 
-Payloads are automatically deserialized from `JSON` for `@SqsListener` annotated methods using a `JacksonJsonMessageConverter` when Jackson 3 is on classpath. If there is no Jackson 3 on classpath and there is Jackson 2 on classpath `MappingJackson2MessageConverter` will be used.
+Payloads are automatically deserialized from `JSON` for `@SqsListener` annotated methods to the inferred payload type. See <<Automatic Payload Type Inference>> for information on how the payload type is inferred.
 
-NOTE: When using Spring Boot's auto-configuration, if there's a single `JsonMapper` in Spring Context, such object mapper will be used for converting messages.
-This includes the one provided by Spring Boot's auto-configuration itself.
-For configuring a different `JsonMapper`, see <<Global Configuration for @SqsListeners>>.
+==== Configuring Payload Deserialization
 
-NOTE: When Jackson 3 is not on classpath and only Jackson 2 is found, if there's a single `ObjectMapper` in Spring Context, such object mapper will be used for converting messages.
-This includes the one provided by Spring Boot's auto-configuration itself.
+Payload conversion for `@SqsListener` methods is performed by a `SqsMessagingMessageConverter` by default.
+
+If message conversion customization is necessary, the `SqsMessagingMessageConverter` provided by auto-configuration can be overridden by declaring a `MessagingMessageConverter` bean, or by configuring it through `SqsMessageListenerContainerFactory` and its `ContainerOptions`.
+
+Customizing via `ContainerOptions`:
+
+[source,java]
+----
+@Bean
+SqsMessageListenerContainerFactory<?> sqsMessageListenerContainerFactory(MessagingMessageConverter<?> converter) {
+    SqsMessageListenerContainerFactory<?> factory = new SqsMessageListenerContainerFactory<>();
+    factory.configure(options -> options.messageConverter(converter));
+    return factory;
+}
+----
+
+Providing a custom `SqsMessagingMessageConverter` backed by a `JsonMapper`:
+
+[source,java]
+----
+@Bean
+MessagingMessageConverter<?> messageConverter(JsonMapper jsonMapper) {
+    return new SqsMessagingMessageConverter(jsonMapper);
+}
+----
+
+NOTE: When using Spring Boot's auto-configuration, if there is a single `JsonMapper` in the Spring context, that `JsonMapper` will be used for converting messages. This includes the one provided by Spring Boot's auto-configuration itself.
+
+==== Jackson Migration
+
+During the Jackson migration period, if Jackson 3 is on the classpath, a `JacksonJsonMessageConverter` will be used.
+If only Jackson 2 is on the classpath, `MappingJackson2MessageConverter` will be used.
+
+When using Jackson 2, if there is a single `ObjectMapper` in the Spring context, that `ObjectMapper` will be used for converting messages.
+
+While auto-selection should be sufficient for most users, if both Jackson 2 and Jackson 3 are present on the classpath and Jackson 2-based conversion is required, a temporary workaround is to declare a `LegacyJackson2SqsMessagingMessageConverter` bean for payload deserialization and/or a `LegacyJackson2MessageConverterMigration` bean for the default listener method argument resolvers.
+These workarounds are transitional and not a long-term supported contract.
 
 ==== Automatic Payload Type Inference
 
@@ -1722,7 +1798,13 @@ An example of such configuration follows:
 
 [source, java]
 ----
-// Create converter instance
+// Create converter instance with custom JsonMapper
+JsonMapper customMapper = JsonMapper.builder()
+    .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+    .build();
+SqsMessagingMessageConverter messageConverter = new SqsMessagingMessageConverter(customMapper);
+
+// Or create with defaults
 SqsMessagingMessageConverter messageConverter = new SqsMessagingMessageConverter();
 
 // Configure Type Header
@@ -1739,8 +1821,8 @@ headerMapper.setAdditionalHeadersFunction(((sqsMessage, accessor) -> {
 }));
 messageConverter.setHeaderMapper(headerMapper);
 
-// Configure Payload Converter
-JacksonJsonMessageConverter payloadConverter = new JacksonJsonMessageConverter();
+// Alternatively, configure a custom Payload Converter directly
+JacksonJsonMessageConverter payloadConverter = new JacksonJsonMessageConverter(customMapper);
 payloadConverter.setPrettyPrint(true);
 messageConverter.setPayloadMessageConverter(payloadConverter);
 
@@ -1962,11 +2044,13 @@ NOTE: PARALLEL is the default for FIFO because ordering is guaranteed for proces
 This assures no messages from a given `MessageGroup` will be polled until the previous batch is acknowledged.
 Implementations of this interface will be executed after an acknowledgement execution completes with either success or failure.
 
+[[sqs-acknowledgement-result-callback]]
 ==== Acknowledgement Result Callback
 
-The framework offers the `AcknowledgementResultCallback` and `AsyncAcknowledgementCallback` interfaces that can be added to a `SqsMessageListenerContainer` or `SqsMessageListenerContainerFactory`.
+The framework offers the `AcknowledgementResultCallback` and `AsyncAcknowledgementResultCallback` interfaces that can be added to a `SqsMessageListenerContainer` or `SqsMessageListenerContainerFactory`.
 
-```java
+[source, java]
+----
 public interface AcknowledgementResultCallback<T> {
 
 	default void onSuccess(Collection<Message<T>> messages) {
@@ -1976,9 +2060,10 @@ public interface AcknowledgementResultCallback<T> {
 	}
 
 }
-```
+----
 
-```java
+[source, java]
+----
 public interface AsyncAcknowledgementResultCallback<T> {
 
 	default CompletableFuture<Void> onSuccess(Collection<Message<T>> messages) {
@@ -1990,23 +2075,83 @@ public interface AsyncAcknowledgementResultCallback<T> {
 	}
 
 }
-```
+----
 
-```java
+Since 4.1.0, the auto-configured factory automatically injects any `AcknowledgementResultCallback` or `AsyncAcknowledgementResultCallback` beans declared in the application context:
+
+[source, java]
+----
+@Bean
+public AcknowledgementResultCallback<Object> acknowledgementResultCallback() {
+	return new AcknowledgementResultCallback<>() {
+		@Override
+		public void onSuccess(Collection<Message<Object>> messages) {
+			// Custom logic after successful acknowledgement
+		}
+
+		@Override
+		public void onFailure(Collection<Message<Object>> messages, Throwable t) {
+			// Custom logic after acknowledgement failure
+		}
+	};
+}
+----
+
+Or using the async variant:
+
+[source, java]
+----
+@Bean
+public AsyncAcknowledgementResultCallback<Object> asyncAcknowledgementResultCallback() {
+	return new AsyncAcknowledgementResultCallback<>() {
+		@Override
+		public CompletableFuture<Void> onSuccess(Collection<Message<Object>> messages) {
+			// Custom async logic after successful acknowledgement
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public CompletableFuture<Void> onFailure(Collection<Message<Object>> messages, Throwable t) {
+			// Custom async logic after acknowledgement failure
+			return CompletableFuture.completedFuture(null);
+		}
+	};
+}
+----
+
+Alternatively, implementations can be set in the `MessageListenerContainerFactory` or directly in the `MessageListenerContainer`:
+
+[source, java]
+----
 @Bean
 public SqsMessageListenerContainerFactory<Object> defaultSqsListenerContainerFactory(SqsAsyncClient sqsAsyncClient) {
 	return SqsMessageListenerContainerFactory
 		.builder()
 		.sqsAsyncClient(sqsAsyncClient)
-		.acknowledgementResultCallback(getAcknowledgementResultCallback())
+		.acknowledgementResultCallback(acknowledgementResultCallback())
 		.build();
 }
-```
+----
 
 NOTE: When `immediate acknowledgement` is set, as is the default for `FIFO` queues, the callback will be executed **before** the next message in the batch is processed, and next message processing will wait for the callback completion.
 This can be useful for taking action such as retrying to delete the messages, or stopping the container to prevent duplicate processing in case an acknowledgement fails in a FIFO queue.
 For `batch parallel processing`, as is the default for `Standard` queues the callback execution happens asynchronously.
 
+If an acknowledgement operation partially fails, for example when `DeleteMessageBatch` returns failed entries, the callback `onFailure` receives a `SqsAcknowledgementException`.
+Use `getSuccessfullyAcknowledgedMessages()` and `getFailedAcknowledgementMessages()` to inspect the acknowledgement result and retry only failed messages if needed.
+
+[source, java]
+----
+@Override
+public void onFailure(Collection<Message<Object>> messages, Throwable t) {
+	if (t instanceof SqsAcknowledgementException ex) {
+		Collection<Message<?>> failedMessages = ex.getFailedAcknowledgementMessages();
+		// retry only failedMessages
+	}
+}
+----
+
+NOTE: If the failure IDs returned by AWS cannot be correlated with the original request IDs, a fail-safe is applied: `getSuccessfullyAcknowledgedMessages()` returns an empty collection and `getFailedAcknowledgementMessages()` returns all messages in the batch to prevent silent misclassification.
 
 === Global Configuration for @SqsListeners
 
@@ -2027,27 +2172,16 @@ The following attributes can be configured in the registrar:
 - `setMessageHandlerMethodFactory` - provide a different factory to be used to create the `invocableHandlerMethod` instances that wrap the listener methods.
 - `setListenerContainerRegistry` - provide a different `MessageListenerContainerRegistry` implementation to be used to register the `MessageListenerContainers`
 - `setMessageListenerContainerRegistryBeanName` - provide a different bean name to be used to retrieve the `MessageListenerContainerRegistry`
-- `setJacksonMessageConverterMigration` - set the `JacksonMessageConverterMigration` which will be used to construct `MessageConverter` and provide either `JsonMapper` for Jackson 3 or `ObjectMapper` for Jackson 2. Check `JacksonJsonMessageConverterMigration` and `LegacyJackson2MessageConverterMigration`
-See <<Message Conversion and Payload Deserialization>> for more information on where this is used.
+- `setJacksonMessageConverterMigration` - internal migration wiring for the Jackson 2 to Jackson 3 transition, not intended for application configuration.
 - `setValidator` - set the `Validator` instance that will be used for payload validation in listener methods.
-- `manageMessageConverters` - gives access to the list of message converters that will be used to convert messages.
+- `manageMessageConverters` - gives access to the list of message converters that will be used by ArgumentResolvers.
 By default, `StringMessageConverter`, `SimpleMessageConverter` and `JacksonJsonMessageConverter` are used.
 
 - `manageArgumentResolvers` - gives access to the list of argument resolvers that will be used to resolve the listener method arguments.
-The order of resolvers is important - `PayloadMethodArgumentResolver` should generally be last since it's used as default.
 - `setMethodPayloadTypeInferrer` - set the `MethodPayloadTypeInferrer` instance to be used for automatic payload type inference.
 Set to `null` to disable automatic inference and rely on header-based type mapping.
 See <<Automatic Payload Type Inference>> for more information.
 
-A simple example for Jackson 3 would be:
-
-[source, java]
-----
-@Bean
-SqsListenerConfigurer configurer(JacksonJsonMessageConverterFactory factory) {
-    return registrar -> registrar.setJacksonMessageConverterFactory(factory);
-}
-----
 
 NOTE: Any number of `SqsListenerConfigurer` beans can be registered in the context.
 All instances will be looked up at application startup and iterated through.

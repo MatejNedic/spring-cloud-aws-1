@@ -18,14 +18,15 @@ package io.awspring.cloud.autoconfigure.sqs;
 import io.awspring.cloud.autoconfigure.AwsClientProperties;
 import io.awspring.cloud.sqs.listener.QueueNotFoundStrategy;
 import java.time.Duration;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.lang.Nullable;
 
 /**
  * Properties related to AWS SQS.
  *
  * @author Tomaz Fernandes
  * @author Wei Jiang
+ * @author Jeongmin Kim
  * @since 3.0
  */
 @ConfigurationProperties(prefix = SqsProperties.PREFIX)
@@ -50,6 +51,20 @@ public class SqsProperties extends AwsClientProperties {
 	private QueueNotFoundStrategy queueNotFoundStrategy;
 
 	private Boolean observationEnabled = false;
+
+	/**
+	 * Whether to convert SQS message IDs to UUIDs. Set to {@code false} for SQS-compatible providers that return
+	 * non-UUID message IDs.
+	 */
+	private Boolean convertMessageIdToUuid = true;
+
+	public Boolean getConvertMessageIdToUuid() {
+		return convertMessageIdToUuid;
+	}
+
+	public void setConvertMessageIdToUuid(Boolean convertMessageIdToUuid) {
+		this.convertMessageIdToUuid = convertMessageIdToUuid;
+	}
 
 	/**
 	 * Return the strategy to use if the queue is not found.

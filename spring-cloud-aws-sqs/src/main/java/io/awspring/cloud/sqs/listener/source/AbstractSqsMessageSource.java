@@ -28,6 +28,7 @@ import io.awspring.cloud.sqs.listener.acknowledgement.ExecutingAcknowledgementPr
 import io.awspring.cloud.sqs.listener.acknowledgement.SqsAcknowledgementExecutor;
 import io.awspring.cloud.sqs.support.converter.MessageConversionContext;
 import io.awspring.cloud.sqs.support.converter.SqsMessageConversionContext;
+import io.awspring.cloud.sqs.support.converter.SqsMessageIdResolver;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -35,9 +36,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.Message;
@@ -63,6 +64,7 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
  * @param <T> the {@link Message} payload type.
  *
  * @author Tomaz Fernandes
+ * @author Jeongmin Kim
  * @since 3.0
  */
 public abstract class AbstractSqsMessageSource<T> extends AbstractPollingMessageSource<T, Message>
@@ -109,6 +111,8 @@ public abstract class AbstractSqsMessageSource<T> extends AbstractPollingMessage
 		this.messageVisibility = sqsContainerOptions.getMessageVisibility() != null
 				? (int) sqsContainerOptions.getMessageVisibility().getSeconds()
 				: MESSAGE_VISIBILITY_DISABLED;
+		SqsMessageIdResolver.configureMessageIdResolution(getMessagingMessageConverter(),
+				sqsContainerOptions.getConvertMessageIdToUuid());
 	}
 
 	@Override

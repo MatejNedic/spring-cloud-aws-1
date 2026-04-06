@@ -26,9 +26,9 @@ import io.awspring.cloud.sqs.support.converter.MessagingMessageConverter;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 
 /**
@@ -45,6 +45,7 @@ import org.springframework.messaging.Message;
  * method/.
  *
  * @author Tomaz Fernandes
+ * @author Jeongmin Kim
  * @since 3.0
  */
 public abstract class AbstractMessageConvertingMessageSource<T, S> implements MessageSource<T> {
@@ -131,6 +132,10 @@ public abstract class AbstractMessageConvertingMessageSource<T, S> implements Me
 	@Nullable
 	protected MessageConversionContext getMessageConversionContext() {
 		return this.messageConversionContext;
+	}
+
+	protected MessagingMessageConverter<S> getMessagingMessageConverter() {
+		return this.messagingMessageConverter;
 	}
 
 }

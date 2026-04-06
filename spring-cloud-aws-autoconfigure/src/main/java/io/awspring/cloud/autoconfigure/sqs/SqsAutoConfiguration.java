@@ -25,6 +25,8 @@ import io.awspring.cloud.sqs.config.SqsBootstrapConfiguration;
 import io.awspring.cloud.sqs.config.SqsListenerConfigurer;
 import io.awspring.cloud.sqs.config.SqsMessageListenerContainerFactory;
 import io.awspring.cloud.sqs.listener.SqsContainerOptionsBuilder;
+import io.awspring.cloud.sqs.listener.acknowledgement.AcknowledgementResultCallback;
+import io.awspring.cloud.sqs.listener.acknowledgement.AsyncAcknowledgementResultCallback;
 import io.awspring.cloud.sqs.listener.errorhandler.AsyncErrorHandler;
 import io.awspring.cloud.sqs.listener.errorhandler.ErrorHandler;
 import io.awspring.cloud.sqs.listener.interceptor.AsyncMessageInterceptor;
@@ -64,6 +66,7 @@ import tools.jackson.databind.json.JsonMapper;
  * @author Maciej Walkowiak
  * @author Wei Jiang
  * @author Dongha Kim
+ * @author Jeongmin Kim
  * @since 3.0
  */
 @AutoConfiguration
@@ -111,6 +114,7 @@ public class SqsAutoConfiguration {
 		if (sqsProperties.getQueueNotFoundStrategy() != null) {
 			builder.configure((options) -> options.queueNotFoundStrategy(sqsProperties.getQueueNotFoundStrategy()));
 		}
+		builder.configure(options -> options.convertMessageIdToUuid(sqsProperties.getConvertMessageIdToUuid()));
 		return builder.build();
 	}
 
@@ -123,6 +127,8 @@ public class SqsAutoConfiguration {
 			ObjectProvider<ObservationRegistry> observationRegistry,
 			ObjectProvider<SqsListenerObservation.Convention> observationConventionProvider,
 			ObjectProvider<MessageInterceptor<Object>> interceptors,
+			ObjectProvider<AcknowledgementResultCallback<Object>> acknowledgementResultCallback,
+			ObjectProvider<AsyncAcknowledgementResultCallback<Object>> asyncAcknowledgementResultCallback,
 			ObjectProvider<JacksonMessageConverterMigration> messageConverterFactory,
 			MessagingMessageConverter<?> messagingMessageConverter) {
 
@@ -133,6 +139,8 @@ public class SqsAutoConfiguration {
 		errorHandler.ifAvailable(factory::setErrorHandler);
 		interceptors.forEach(factory::addMessageInterceptor);
 		asyncInterceptors.forEach(factory::addMessageInterceptor);
+		acknowledgementResultCallback.ifAvailable(factory::setAcknowledgementResultCallback);
+		asyncAcknowledgementResultCallback.ifAvailable(factory::setAcknowledgementResultCallback);
 		messageConverterFactory.ifAvailable(mcf -> mcf.configureLegacyObjectMapper(messagingMessageConverter));
 		if (this.sqsProperties.isObservationEnabled()) {
 			observationRegistry
@@ -152,6 +160,7 @@ public class SqsAutoConfiguration {
 		mapper.from(this.sqsProperties.getListener().getPollTimeout()).to(options::pollTimeout);
 		mapper.from(this.sqsProperties.getListener().getMaxDelayBetweenPolls()).to(options::maxDelayBetweenPolls);
 		mapper.from(this.sqsProperties.getListener().getAutoStartup()).to(options::autoStartup);
+		mapper.from(this.sqsProperties.getConvertMessageIdToUuid()).to(options::convertMessageIdToUuid);
 	}
 
 	@ConditionalOnClass(name = "tools.jackson.databind.json.JsonMapper")
@@ -159,8 +168,10 @@ public class SqsAutoConfiguration {
 	static class SqsJacksonConfiguration {
 		@ConditionalOnMissingBean
 		@Bean
-		public MessagingMessageConverter<Message> messageConverter() {
-			return new SqsMessagingMessageConverter();
+		public MessagingMessageConverter<Message> messageConverter(ObjectProvider<JsonMapper> jsonMapperProvider) {
+			return jsonMapperProvider.getIfAvailable() != null
+					? new SqsMessagingMessageConverter(jsonMapperProvider.getIfAvailable())
+					: new SqsMessagingMessageConverter();
 		}
 
 		@Bean

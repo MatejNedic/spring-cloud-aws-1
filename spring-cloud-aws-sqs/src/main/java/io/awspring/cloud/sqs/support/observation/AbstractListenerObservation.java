@@ -22,13 +22,14 @@ import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationConvention;
 import io.micrometer.observation.docs.ObservationDocumentation;
 import io.micrometer.observation.transport.ReceiverContext;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.springframework.messaging.Message;
 
 /**
  * Observation for Message Listener Containers.
  *
  * @author Tomaz Fernandes
+ * @author Jeongmin Kim
  * @since 3.4
  */
 public abstract class AbstractListenerObservation {
@@ -234,7 +235,7 @@ public abstract class AbstractListenerObservation {
 			super((carrier, key) -> carrier.getHeaders().get(key, String.class));
 			setCarrier(message);
 			this.message = message;
-			this.messageId = MessageHeaderUtils.getId(message);
+			this.messageId = MessageHeaderUtils.getRawMessageId(message);
 			this.sourceName = sourceName;
 		}
 
