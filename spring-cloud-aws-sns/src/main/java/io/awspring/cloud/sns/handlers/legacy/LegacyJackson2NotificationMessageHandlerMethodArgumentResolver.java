@@ -53,7 +53,7 @@ public class LegacyJackson2NotificationMessageHandlerMethodArgumentResolver
 	@Nullable
 	private final SnsMessageManager snsMessageManager;
 
-	private static final List<HttpMessageConverter<?>> converters = Arrays
+	public static final List<HttpMessageConverter<?>> converters = Arrays
 			.asList(new MappingJackson2HttpMessageConverter(), new StringHttpMessageConverter());
 
 	public LegacyJackson2NotificationMessageHandlerMethodArgumentResolver() {
