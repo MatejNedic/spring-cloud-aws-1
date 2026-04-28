@@ -99,6 +99,9 @@ public class LegacyJackson2NotificationMessageHandlerMethodArgumentResolver
 
 		MediaType mediaType = getMediaType(content);
 		String messageContent = content.findPath("Message").asText();
+		if (snsMessageManager != null) {
+			verifySignature(content.toString());
+		}
 		for (HttpMessageConverter<?> converter : this.messageConverter) {
 			if (converter.canRead(parameterType, mediaType)) {
 				try {
