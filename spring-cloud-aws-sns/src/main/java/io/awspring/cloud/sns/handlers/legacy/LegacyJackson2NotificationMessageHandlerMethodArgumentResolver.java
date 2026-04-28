@@ -17,7 +17,6 @@ package io.awspring.cloud.sns.handlers.legacy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.awspring.cloud.sns.annotation.handlers.NotificationMessage;
-
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.Charset;
@@ -33,7 +32,6 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.messaging.converter.MessageConversionException;
 import org.springframework.util.StringUtils;
 import software.amazon.awssdk.messagemanager.sns.SnsMessageManager;
 

@@ -68,7 +68,7 @@ public final class NotificationHandlerMethodArgumentResolverConfigurationUtils {
 			composite.addResolver(
 					new LegacyJackson2NotificationStatusHandlerMethodArgumentResolver(snsClient, snsMessageManager));
 			composite.addResolver(new LegacyJackson2NotificationMessageHandlerMethodArgumentResolver(
-				LegacyJackson2NotificationMessageHandlerMethodArgumentResolver.converters, snsMessageManager));
+					LegacyJackson2NotificationMessageHandlerMethodArgumentResolver.converters, snsMessageManager));
 		}
 		else {
 			composite.addResolver(new LegacyJackson2NotificationStatusHandlerMethodArgumentResolver(snsClient));

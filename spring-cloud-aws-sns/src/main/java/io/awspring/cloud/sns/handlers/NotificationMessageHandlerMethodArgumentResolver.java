@@ -16,7 +16,6 @@
 package io.awspring.cloud.sns.handlers;
 
 import io.awspring.cloud.sns.annotation.handlers.NotificationMessage;
-
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.Charset;
