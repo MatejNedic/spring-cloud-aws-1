@@ -17,6 +17,9 @@ package io.awspring.cloud.sns.handlers.legacy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.awspring.cloud.sns.annotation.handlers.NotificationMessage;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
