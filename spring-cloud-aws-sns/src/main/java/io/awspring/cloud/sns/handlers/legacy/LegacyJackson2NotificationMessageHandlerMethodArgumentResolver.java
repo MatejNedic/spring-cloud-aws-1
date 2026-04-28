@@ -17,9 +17,6 @@ package io.awspring.cloud.sns.handlers.legacy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.awspring.cloud.sns.annotation.handlers.NotificationMessage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -117,13 +114,7 @@ public class LegacyJackson2NotificationMessageHandlerMethodArgumentResolver
 	}
 
 	private void verifySignature(String payload) {
-		try (InputStream messageStream = new ByteArrayInputStream(payload.getBytes())) {
-			// Unmarshalling the message is not needed, but also done here
-			snsMessageManager.parseMessage(messageStream);
-		}
-		catch (IOException e) {
-			throw new MessageConversionException("Issue while verifying signature of Payload: '" + payload + "'", e);
-		}
+		snsMessageManager.parseMessage(payload);
 	}
 
 	public static final class ByteArrayHttpInputMessage implements HttpInputMessage {

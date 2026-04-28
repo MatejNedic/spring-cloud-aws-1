@@ -17,13 +17,9 @@ package io.awspring.cloud.sns.handlers.legacy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.awspring.cloud.sns.handlers.NotificationStatus;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpInputMessage;
-import org.springframework.messaging.converter.MessageConversionException;
 import software.amazon.awssdk.messagemanager.sns.SnsMessageManager;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.ConfirmSubscriptionRequest;
@@ -68,7 +64,7 @@ public class LegacyJackson2NotificationStatusHandlerMethodArgumentResolver
 		}
 
 		if (snsMessageManager != null) {
-			verifySignature(content.asText());
+			verifySignature(content.toString());
 		}
 
 		return new AmazonSnsNotificationStatus(this.snsClient, content.get("TopicArn").asText(),
@@ -76,13 +72,7 @@ public class LegacyJackson2NotificationStatusHandlerMethodArgumentResolver
 	}
 
 	private void verifySignature(String payload) {
-		try (InputStream messageStream = new ByteArrayInputStream(payload.getBytes())) {
-			// Unmarshalling the message is not needed, but also done here
-			snsMessageManager.parseMessage(messageStream);
-		}
-		catch (IOException e) {
-			throw new MessageConversionException("Issue while verifying signature of Payload: '" + payload + "'", e);
-		}
+		snsMessageManager.parseMessage(payload);
 	}
 
 	public static final class AmazonSnsNotificationStatus implements NotificationStatus {

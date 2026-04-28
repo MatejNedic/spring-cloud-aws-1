@@ -16,8 +16,8 @@
 package io.awspring.cloud.sns.handlers;
 
 import io.awspring.cloud.sns.annotation.handlers.NotificationMessage;
+
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -32,7 +32,6 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
-import org.springframework.messaging.converter.MessageConversionException;
 import org.springframework.util.StringUtils;
 import software.amazon.awssdk.messagemanager.sns.SnsMessageManager;
 import tools.jackson.databind.JsonNode;
@@ -119,13 +118,7 @@ public class NotificationMessageHandlerMethodArgumentResolver
 	}
 
 	private void verifySignature(String payload) {
-		try (InputStream messageStream = new ByteArrayInputStream(payload.getBytes())) {
-			// Unmarshalling the message is not needed, but also done here
-			snsMessageManager.parseMessage(messageStream);
-		}
-		catch (IOException e) {
-			throw new MessageConversionException("Issue while verifying signature of Payload: '" + payload + "'", e);
-		}
+		snsMessageManager.parseMessage(payload);
 	}
 
 	public static final class ByteArrayHttpInputMessage implements HttpInputMessage {
