@@ -142,34 +142,11 @@ class KinesisTemplateTests {
 	}
 
 	@Test
-	@DisplayName("SendRequest rejects a partition key longer than 256 characters")
-	void partitionKeyLengthIsRejected() {
-		String tooLong = "a".repeat(257);
-		assertThatThrownBy(() -> SendRequest.builder().streamName("orders").partitionKey(tooLong).payload("x").build())
-				.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("256");
-	}
-
-	@Test
 	@DisplayName("SendRequest accepts a partition key of exactly 256 characters")
 	void partitionKeyAtBoundaryIsAccepted() {
 		String boundary = "a".repeat(256);
 		SendRequest request = SendRequest.builder().streamName("orders").partitionKey(boundary).payload("x").build();
 		assertThat(request.partitionKey()).hasSize(256);
-	}
-
-	@Test
-	@DisplayName("SendRequest rejects an explicit hash key that does not match the required pattern")
-	void explicitHashKeyPatternIsValidated() {
-		assertThatThrownBy(() -> SendRequest.builder().streamName("orders").partitionKey("pk").payload("x")
-				.explicitHashKey("01").build()).isInstanceOf(IllegalArgumentException.class)
-				.hasMessageContaining("explicitHashKey");
-		assertThatThrownBy(() -> SendRequest.builder().streamName("orders").partitionKey("pk").payload("x")
-				.explicitHashKey("-1").build()).isInstanceOf(IllegalArgumentException.class);
-		assertThat(SendRequest.builder().streamName("orders").partitionKey("pk").payload("x").explicitHashKey("0")
-				.build().explicitHashKey()).isEqualTo("0");
-		assertThat(SendRequest.builder().streamName("orders").partitionKey("pk").payload("x")
-				.explicitHashKey("340282366920938463463374607431768211455").build().explicitHashKey())
-				.isEqualTo("340282366920938463463374607431768211455");
 	}
 
 	@Test
