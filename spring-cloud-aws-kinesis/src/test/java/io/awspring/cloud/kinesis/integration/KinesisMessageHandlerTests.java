@@ -101,8 +101,8 @@ class KinesisMessageHandlerTests {
 		assertThat(putRecordRequest.sequenceNumberForOrdering()).isEqualTo("10");
 		assertThat(putRecordRequest.explicitHashKey()).isNull();
 
-		Message<?> messageToCheck = new org.springframework.integration.support.json.EmbeddedJsonHeadersMessageMapper()
-				.toMessage(putRecordRequest.data().asByteArray());
+		Message<?> messageToCheck = new org.springframework.integration.support.json.EmbeddedJsonHeadersMessageMapper(
+				"*").toMessage(putRecordRequest.data().asByteArray());
 
 		assertThat(messageToCheck.getHeaders()).contains(entry("testHeader", "testValue"));
 		assertThat(messageToCheck.getPayload()).isEqualTo("message".getBytes());
