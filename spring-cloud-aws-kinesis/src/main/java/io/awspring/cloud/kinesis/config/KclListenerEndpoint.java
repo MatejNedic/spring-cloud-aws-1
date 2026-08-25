@@ -16,11 +16,13 @@
 package io.awspring.cloud.kinesis.config;
 
 import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode;
+import io.awspring.cloud.kinesis.listener.retrieval.KinesisConsumerResolver;
 import io.awspring.cloud.kinesis.listener.retrieval.RetrievalMode;
 import java.lang.reflect.Method;
 import org.jspecify.annotations.Nullable;
 import org.springframework.messaging.handler.annotation.support.MessageHandlerMethodFactory;
 import org.springframework.util.Assert;
+import software.amazon.kinesis.common.InitialPositionInStream;
 
 /**
  * @author Matej Nedic
@@ -48,6 +50,21 @@ public class KclListenerEndpoint {
 	private final RetrievalMode retrievalMode;
 
 	@Nullable
+	private final InitialPositionInStream initialPositionInStream;
+
+	@Nullable
+	private final String consumerArn;
+
+	@Nullable
+	private final String consumerName;
+
+	@Nullable
+	private final String leaseTableName;
+
+	@Nullable
+	private final String metricsNamespace;
+
+	@Nullable
 	private final String replyStream;
 
 	@Nullable
@@ -67,6 +84,11 @@ public class KclListenerEndpoint {
 		this.method = builder.method;
 		this.checkpointMode = builder.checkpointMode;
 		this.retrievalMode = builder.retrievalMode;
+		this.initialPositionInStream = builder.initialPositionInStream;
+		this.consumerArn = builder.consumerArn;
+		this.consumerName = builder.consumerName;
+		this.leaseTableName = builder.leaseTableName;
+		this.metricsNamespace = builder.metricsNamespace;
 		this.replyStream = builder.replyStream;
 	}
 
@@ -119,6 +141,31 @@ public class KclListenerEndpoint {
 	}
 
 	@Nullable
+	public InitialPositionInStream getInitialPositionInStream() {
+		return this.initialPositionInStream;
+	}
+
+	@Nullable
+	public String getConsumerArn() {
+		return this.consumerArn;
+	}
+
+	@Nullable
+	public String getConsumerName() {
+		return this.consumerName;
+	}
+
+	@Nullable
+	public String getLeaseTableName() {
+		return this.leaseTableName;
+	}
+
+	@Nullable
+	public String getMetricsNamespace() {
+		return this.metricsNamespace;
+	}
+
+	@Nullable
 	public String getReplyStream() {
 		return this.replyStream;
 	}
@@ -148,6 +195,21 @@ public class KclListenerEndpoint {
 
 		@Nullable
 		private RetrievalMode retrievalMode;
+
+		@Nullable
+		private InitialPositionInStream initialPositionInStream;
+
+		@Nullable
+		private String consumerArn;
+
+		@Nullable
+		private String consumerName;
+
+		@Nullable
+		private String leaseTableName;
+
+		@Nullable
+		private String metricsNamespace;
 
 		@Nullable
 		private String replyStream;
@@ -192,6 +254,30 @@ public class KclListenerEndpoint {
 
 		public Builder retrievalMode(@Nullable RetrievalMode retrievalMode) {
 			this.retrievalMode = retrievalMode;
+			return this;
+		}
+
+		public Builder initialPositionInStream(@Nullable InitialPositionInStream initialPositionInStream) {
+			this.initialPositionInStream = initialPositionInStream;
+			return this;
+		}
+
+		public Builder consumerName(@Nullable String consumerNameOrArn) {
+			this.consumerArn = consumerNameOrArn != null ? KinesisConsumerResolver.resolveConsumerArn(consumerNameOrArn)
+					: null;
+			this.consumerName = consumerNameOrArn != null
+					? KinesisConsumerResolver.resolveConsumerName(consumerNameOrArn)
+					: null;
+			return this;
+		}
+
+		public Builder leaseTableName(@Nullable String leaseTableName) {
+			this.leaseTableName = leaseTableName;
+			return this;
+		}
+
+		public Builder metricsNamespace(@Nullable String metricsNamespace) {
+			this.metricsNamespace = metricsNamespace;
 			return this;
 		}
 

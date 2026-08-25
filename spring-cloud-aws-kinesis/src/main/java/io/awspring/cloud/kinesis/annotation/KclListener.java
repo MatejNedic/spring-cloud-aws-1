@@ -88,4 +88,40 @@ public @interface KclListener {
 	 */
 	String retrievalMode() default "";
 
+	/**
+	 * The {@link software.amazon.kinesis.common.InitialPositionInStream} to be used for this endpoint when no
+	 * checkpoint exists yet for a shard, {@code TRIM_HORIZON} by default. Only {@code LATEST} and {@code TRIM_HORIZON}
+	 * are supported here and the value always takes precedence over the position configured for the container factory.
+	 * To fall back to the factory (for example to start {@code AT_TIMESTAMP}, which needs a timestamp the annotation
+	 * cannot carry), set this attribute to an empty string.
+	 * @return the initial position in stream.
+	 */
+	String initialPositionInStream() default "TRIM_HORIZON";
+
+	/**
+	 * The pre-registered enhanced fan-out consumer to read this stream with, given either as its name or as its ARN
+	 * (only relevant for {@code ENHANCED_FAN_OUT} retrieval). A value starting with {@code arn:} is treated as an ARN,
+	 * anything else as a name. A consumer belongs to a single stream, which is why it is declared per listener instead
+	 * of through the {@code spring.cloud.aws.kinesis.listener} properties. If not specified, a consumer derived from
+	 * the {@link #applicationName()} is registered or reused.
+	 * @return the enhanced fan-out consumer name or ARN.
+	 */
+	String consumerName() default "";
+
+	/**
+	 * The DynamoDB lease table name for this listener, holding its shard leases and checkpoints. A lease table must
+	 * never be shared between listeners, since KCL workers of different applications would then compete for each
+	 * other's leases, which is why it is declared per listener instead of through the
+	 * {@code spring.cloud.aws.kinesis.listener} properties. If not specified, the {@link #applicationName()} is used.
+	 * @return the lease table name.
+	 */
+	String leaseTableName() default "";
+
+	/**
+	 * The CloudWatch namespace the KCL metrics of this listener are published to. If not specified, the namespace
+	 * defined for the container factory is used, which in turn defaults to the {@link #applicationName()}.
+	 * @return the metrics namespace.
+	 */
+	String metricsNamespace() default "";
+
 }

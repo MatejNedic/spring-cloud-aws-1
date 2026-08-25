@@ -86,20 +86,25 @@ public class KclMessageListenerContainerFactory implements MessageListenerContai
 		if (this.optionsConsumer != null) {
 			this.optionsConsumer.accept(optionsBuilder);
 		}
-		if (endpoint.getRetrievalMode() != null) {
-			optionsBuilder.retrievalMode(endpoint.getRetrievalMode());
-		}
+		applyWhenNonNull(endpoint.getRetrievalMode(), optionsBuilder::retrievalMode);
+		applyWhenNonNull(endpoint.getInitialPositionInStream(), optionsBuilder::initialPositionInStream);
+		applyWhenNonNull(endpoint.getConsumerArn(), optionsBuilder::consumerArn);
+		applyWhenNonNull(endpoint.getConsumerName(), optionsBuilder::consumerName);
+		applyWhenNonNull(endpoint.getLeaseTableName(), optionsBuilder::leaseTableName);
+		applyWhenNonNull(endpoint.getMetricsNamespace(), optionsBuilder::metricsNamespace);
 		KclMessageListenerContainer container = new KclMessageListenerContainer(this.kinesisClient, this.dynamoDbClient,
 				this.cloudWatchClient, endpoint.getStreamName(), endpoint.getApplicationName(), optionsBuilder.build());
 		container.setId(endpoint.getId());
-		if (endpoint.getCheckpointMode() != null) {
-			container.setCheckpointMode(endpoint.getCheckpointMode());
-		}
-		if (this.errorHandler != null) {
-			container.setErrorHandler(this.errorHandler);
-		}
+		applyWhenNonNull(endpoint.getCheckpointMode(), container::setCheckpointMode);
+		applyWhenNonNull(this.errorHandler, container::setErrorHandler);
 		configureListener(container, endpoint);
 		return container;
+	}
+
+	private static <T> void applyWhenNonNull(@Nullable T value, Consumer<T> setter) {
+		if (value != null) {
+			setter.accept(value);
+		}
 	}
 
 	private void configureListener(KclMessageListenerContainer container, KclListenerEndpoint endpoint) {

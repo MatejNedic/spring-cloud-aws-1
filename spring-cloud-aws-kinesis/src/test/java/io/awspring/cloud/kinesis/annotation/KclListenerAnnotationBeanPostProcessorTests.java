@@ -16,6 +16,7 @@
 package io.awspring.cloud.kinesis.annotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.awspring.cloud.kinesis.config.KclBootstrapConfiguration;
 import io.awspring.cloud.kinesis.config.KclListenerEndpoint;
@@ -37,6 +38,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.messaging.handler.annotation.SendTo;
+import software.amazon.kinesis.common.InitialPositionInStream;
 
 /**
  * @author Matej Nedic
@@ -91,6 +93,89 @@ class KclListenerAnnotationBeanPostProcessorTests {
 			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
 			assertThat(endpoint.getCheckpointMode()).isEqualTo(CheckpointMode.RECORD);
 			assertThat(endpoint.getRetrievalMode()).isEqualTo(RetrievalMode.ENHANCED_FAN_OUT);
+		}
+	}
+
+	@Test
+	@DisplayName("defaults the initial position in stream to TRIM_HORIZON")
+	void initialPositionDefaultsToTrimHorizon() {
+		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(TestConfig.class)) {
+			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			assertThat(endpoint.getInitialPositionInStream()).isEqualTo(InitialPositionInStream.TRIM_HORIZON);
+		}
+	}
+
+	@Test
+	@DisplayName("resolves LATEST as the initial position in stream from the annotation")
+	void resolvesLatestInitialPosition() {
+		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
+				LatestPositionConfig.class)) {
+			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			assertThat(endpoint.getInitialPositionInStream()).isEqualTo(InitialPositionInStream.LATEST);
+		}
+	}
+
+	@Test
+	@DisplayName("resolves the initial position in stream from a property placeholder")
+	void resolvesInitialPositionFromPlaceholder() {
+		try (AnnotationConfigApplicationContext context = contextWith(PlaceholderPositionConfig.class,
+				"app.initial-position", "LATEST")) {
+			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			assertThat(endpoint.getInitialPositionInStream()).isEqualTo(InitialPositionInStream.LATEST);
+		}
+	}
+
+	@Test
+	@DisplayName("an empty initial position in stream falls back to the factory configuration")
+	void emptyInitialPositionFallsBackToFactory() {
+		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
+				EmptyPositionConfig.class)) {
+			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			assertThat(endpoint.getInitialPositionInStream()).isNull();
+		}
+	}
+
+	@Test
+	@DisplayName("AT_TIMESTAMP is rejected on the annotation since it cannot carry a timestamp")
+	void rejectsAtTimestampInitialPosition() {
+		assertThatThrownBy(() -> new AnnotationConfigApplicationContext(AtTimestampPositionConfig.class))
+				.hasRootCauseInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("AT_TIMESTAMP is not supported on @KclListener");
+	}
+
+	@Test
+	@DisplayName("resolves the per-stream identities (consumer, lease table, metrics namespace) from the annotation")
+	void resolvesPerStreamIdentities() {
+		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
+				PerStreamIdentityConfig.class)) {
+			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			assertThat(endpoint.getConsumerArn()).isEqualTo("arn:aws:kinesis:eu-west-1:123456789012:stream/orders");
+			assertThat(endpoint.getConsumerName()).isNull();
+			assertThat(endpoint.getLeaseTableName()).isEqualTo("orders-leases");
+			assertThat(endpoint.getMetricsNamespace()).isEqualTo("orders-metrics");
+		}
+	}
+
+	@Test
+	@DisplayName("a consumerName that is not an ARN is resolved as a consumer name")
+	void resolvesConsumerNameAsName() {
+		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
+				ConsumerNameConfig.class)) {
+			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			assertThat(endpoint.getConsumerName()).isEqualTo("orders-consumer");
+			assertThat(endpoint.getConsumerArn()).isNull();
+		}
+	}
+
+	@Test
+	@DisplayName("leaves the per-stream identities null when not specified")
+	void leavesPerStreamIdentitiesNullWhenNotSpecified() {
+		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(TestConfig.class)) {
+			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			assertThat(endpoint.getConsumerArn()).isNull();
+			assertThat(endpoint.getConsumerName()).isNull();
+			assertThat(endpoint.getLeaseTableName()).isNull();
+			assertThat(endpoint.getMetricsNamespace()).isNull();
 		}
 	}
 
@@ -339,6 +424,150 @@ class KclListenerAnnotationBeanPostProcessorTests {
 		@Bean
 		PlainBean plainBean() {
 			return new PlainBean();
+		}
+
+	}
+
+	@Configuration
+	@Import(KclBootstrapConfiguration.class)
+	static class LatestPositionConfig {
+
+		@Bean
+		CapturingContainerFactory containerFactory() {
+			return new CapturingContainerFactory();
+		}
+
+		@Bean
+		LatestPositionListener latestPositionListener() {
+			return new LatestPositionListener();
+		}
+
+	}
+
+	@Configuration
+	@Import(KclBootstrapConfiguration.class)
+	static class PlaceholderPositionConfig {
+
+		@Bean
+		CapturingContainerFactory containerFactory() {
+			return new CapturingContainerFactory();
+		}
+
+		@Bean
+		PlaceholderPositionListener placeholderPositionListener() {
+			return new PlaceholderPositionListener();
+		}
+
+	}
+
+	@Configuration
+	@Import(KclBootstrapConfiguration.class)
+	static class EmptyPositionConfig {
+
+		@Bean
+		CapturingContainerFactory containerFactory() {
+			return new CapturingContainerFactory();
+		}
+
+		@Bean
+		EmptyPositionListener emptyPositionListener() {
+			return new EmptyPositionListener();
+		}
+
+	}
+
+	@Configuration
+	@Import(KclBootstrapConfiguration.class)
+	static class AtTimestampPositionConfig {
+
+		@Bean
+		CapturingContainerFactory containerFactory() {
+			return new CapturingContainerFactory();
+		}
+
+		@Bean
+		AtTimestampPositionListener atTimestampPositionListener() {
+			return new AtTimestampPositionListener();
+		}
+
+	}
+
+	static class LatestPositionListener {
+
+		@KclListener(id = "latest-position", streamName = "orders", initialPositionInStream = "LATEST")
+		void handle(String payload) {
+		}
+
+	}
+
+	static class PlaceholderPositionListener {
+
+		@KclListener(id = "placeholder-position", streamName = "orders", initialPositionInStream = "${app.initial-position}")
+		void handle(String payload) {
+		}
+
+	}
+
+	static class EmptyPositionListener {
+
+		@KclListener(id = "empty-position", streamName = "orders", initialPositionInStream = "")
+		void handle(String payload) {
+		}
+
+	}
+
+	static class AtTimestampPositionListener {
+
+		@KclListener(id = "at-timestamp-position", streamName = "orders", initialPositionInStream = "AT_TIMESTAMP")
+		void handle(String payload) {
+		}
+
+	}
+
+	@Configuration
+	@Import(KclBootstrapConfiguration.class)
+	static class PerStreamIdentityConfig {
+
+		@Bean
+		CapturingContainerFactory containerFactory() {
+			return new CapturingContainerFactory();
+		}
+
+		@Bean
+		PerStreamIdentityListener perStreamIdentityListener() {
+			return new PerStreamIdentityListener();
+		}
+
+	}
+
+	@Configuration
+	@Import(KclBootstrapConfiguration.class)
+	static class ConsumerNameConfig {
+
+		@Bean
+		CapturingContainerFactory containerFactory() {
+			return new CapturingContainerFactory();
+		}
+
+		@Bean
+		ConsumerNameListener consumerNameListener() {
+			return new ConsumerNameListener();
+		}
+
+	}
+
+	static class PerStreamIdentityListener {
+
+		@KclListener(id = "per-stream", streamName = "orders", retrievalMode = "ENHANCED_FAN_OUT", consumerName = "arn:aws:kinesis:eu-west-1:123456789012:stream/orders", leaseTableName = "orders-leases", metricsNamespace = "orders-metrics")
+		void handle(String payload) {
+		}
+
+	}
+
+	static class ConsumerNameListener {
+
+		@KclListener(id = "consumer-name", streamName = "orders", retrievalMode = "ENHANCED_FAN_OUT", consumerName = "orders-consumer")
+		void handle(String payload) {
 		}
 
 	}

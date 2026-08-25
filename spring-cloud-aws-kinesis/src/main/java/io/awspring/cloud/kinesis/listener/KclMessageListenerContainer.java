@@ -121,6 +121,10 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 		this.id = streamName;
 	}
 
+	public KclContainerOptions getContainerOptions() {
+		return this.options;
+	}
+
 	public void setMessageListener(MessageListener messageListener) {
 		Assert.notNull(messageListener, "messageListener must not be null");
 		this.messageListener = messageListener;
@@ -178,14 +182,13 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 			}
 			Assert.state(this.messageListener != null || this.batchMessageListener != null,
 					"A messageListener or batchMessageListener must be set before starting the container");
-			Scheduler currentScheduler = createScheduler();
-			this.scheduler = currentScheduler;
+			this.scheduler = createScheduler();
 			this.executorService = Executors.newSingleThreadExecutor(runnable -> {
 				Thread thread = new Thread(runnable, "kcl-" + getId());
 				thread.setDaemon(true);
 				return thread;
 			});
-			this.executorService.submit(() -> runScheduler(currentScheduler));
+			this.executorService.submit(() -> runScheduler(this.scheduler));
 			this.running = true;
 			logger.info("Started KCL container '{}' for stream '{}' (application '{}')", getId(), this.streamName,
 					this.applicationName);

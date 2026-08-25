@@ -118,12 +118,9 @@ public class KinesisAutoConfiguration {
 		mapper.from(listener.getCheckpointInterval()).to(options::checkpointInterval);
 		mapper.from(listener.getMetricsLevel()).to(options::metricsLevel);
 		mapper.from(listener.getMetricsNamespace()).to(options::metricsNamespace);
-		mapper.from(listener.getConsumerArn()).to(options::consumerArn);
-		mapper.from(listener.getConsumerName()).to(options::consumerName);
 		mapper.from(listener.getAutoStartup()).to(options::autoStartup);
 		mapper.from(listener.getPhase()).to(options::phase);
 		mapper.from(listener.getInitialPositionTimestamp()).to(options::initialPositionTimestamp);
-		mapper.from(listener.getLeaseTableName()).to(options::leaseTableName);
 		mapper.from(listener.getBillingMode()).to(options::billingMode);
 		mapper.from(listener.getContentType()).as(MimeTypeUtils::parseMimeType).to(options::payloadContentType);
 	}

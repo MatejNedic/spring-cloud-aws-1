@@ -46,6 +46,7 @@ import org.springframework.messaging.support.MessageBuilder;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.kinesis.common.InitialPositionInStream;
 
 /**
  * @author Matej Nedic
@@ -131,6 +132,46 @@ class KclMessageListenerContainerFactoryTests {
 		KclMessageListenerContainer container = (KclMessageListenerContainer) this.factory.createContainer(endpoint);
 
 		assertThat(container.getCheckpointMode()).isEqualTo(CheckpointMode.PERIODIC);
+	}
+
+	@Test
+	@DisplayName("initial position in stream from the endpoint overrides the factory options")
+	void endpointInitialPositionOverridesOptions() throws Exception {
+		this.factory.configure(options -> options.initialPositionInStream(InitialPositionInStream.TRIM_HORIZON));
+		KclListenerEndpoint endpoint = endpointBuilder(new RecordingListener(), "handle", String.class, String.class)
+				.initialPositionInStream(InitialPositionInStream.LATEST).build();
+		endpoint.setHandlerMethodFactory(handlerMethodFactory());
+		KclMessageListenerContainer container = (KclMessageListenerContainer) this.factory.createContainer(endpoint);
+
+		assertThat(container.getContainerOptions().getInitialPositionInStream())
+				.isEqualTo(InitialPositionInStream.LATEST);
+	}
+
+	@Test
+	@DisplayName("initial position in stream configured on the factory options is kept when the endpoint does not specify one")
+	void initialPositionFromOptionsPreservedWhenEndpointUnset() throws Exception {
+		this.factory.configure(options -> options.initialPositionInStream(InitialPositionInStream.LATEST));
+		KclMessageListenerContainer container = (KclMessageListenerContainer) this.factory
+				.createContainer(endpoint(new RecordingListener(), "handle", String.class, String.class));
+
+		assertThat(container.getContainerOptions().getInitialPositionInStream())
+				.isEqualTo(InitialPositionInStream.LATEST);
+	}
+
+	@Test
+	@DisplayName("per-stream identities from the endpoint are applied to the container options")
+	void endpointPerStreamIdentitiesAreApplied() throws Exception {
+		KclListenerEndpoint endpoint = endpointBuilder(new RecordingListener(), "handle", String.class, String.class)
+				.consumerName("arn:aws:kinesis:eu-west-1:123456789012:stream/orders").leaseTableName("orders-leases")
+				.metricsNamespace("orders-metrics").build();
+		endpoint.setHandlerMethodFactory(handlerMethodFactory());
+		KclMessageListenerContainer container = (KclMessageListenerContainer) this.factory.createContainer(endpoint);
+
+		assertThat(container.getContainerOptions().getConsumerArn())
+				.isEqualTo("arn:aws:kinesis:eu-west-1:123456789012:stream/orders");
+		assertThat(container.getContainerOptions().getConsumerName()).isNull();
+		assertThat(container.getContainerOptions().getLeaseTableName()).isEqualTo("orders-leases");
+		assertThat(container.getContainerOptions().getMetricsNamespace()).isEqualTo("orders-metrics");
 	}
 
 	@Test

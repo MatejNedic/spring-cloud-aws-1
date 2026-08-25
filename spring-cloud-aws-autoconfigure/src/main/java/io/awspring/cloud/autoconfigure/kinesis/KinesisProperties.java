@@ -78,12 +78,6 @@ public class KinesisProperties extends AwsClientProperties {
 		private String metricsNamespace;
 
 		@Nullable
-		private String consumerArn;
-
-		@Nullable
-		private String consumerName;
-
-		@Nullable
 		private Boolean autoStartup;
 
 		@Nullable
@@ -91,9 +85,6 @@ public class KinesisProperties extends AwsClientProperties {
 
 		@Nullable
 		private Instant initialPositionTimestamp;
-
-		@Nullable
-		private String leaseTableName;
 
 		@Nullable
 		private BillingMode billingMode;
@@ -192,24 +183,6 @@ public class KinesisProperties extends AwsClientProperties {
 		}
 
 		@Nullable
-		public String getConsumerArn() {
-			return this.consumerArn;
-		}
-
-		public void setConsumerArn(String consumerArn) {
-			this.consumerArn = consumerArn;
-		}
-
-		@Nullable
-		public String getConsumerName() {
-			return this.consumerName;
-		}
-
-		public void setConsumerName(String consumerName) {
-			this.consumerName = consumerName;
-		}
-
-		@Nullable
 		public Boolean getAutoStartup() {
 			return this.autoStartup;
 		}
@@ -234,15 +207,6 @@ public class KinesisProperties extends AwsClientProperties {
 
 		public void setInitialPositionTimestamp(Instant initialPositionTimestamp) {
 			this.initialPositionTimestamp = initialPositionTimestamp;
-		}
-
-		@Nullable
-		public String getLeaseTableName() {
-			return this.leaseTableName;
-		}
-
-		public void setLeaseTableName(String leaseTableName) {
-			this.leaseTableName = leaseTableName;
 		}
 
 		@Nullable

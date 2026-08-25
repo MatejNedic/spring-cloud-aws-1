@@ -63,6 +63,7 @@ import org.springframework.messaging.handler.invocation.HandlerMethodArgumentRes
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.Validator;
+import software.amazon.kinesis.common.InitialPositionInStream;
 
 /**
  * @author Matej Nedic
@@ -141,8 +142,12 @@ public class KclListenerAnnotationBeanPostProcessor
 		return KclListenerEndpoint.builder().id(id).streamName(streamName).applicationName(applicationName)
 				.factoryBeanName(factoryBeanName).bean(bean).method(method)
 				.checkpointMode(resolveCheckpointMode(annotation.checkpointMode()))
-				.retrievalMode(resolveRetrievalMode(annotation.retrievalMode())).replyStream(resolveReplyStream(method))
-				.build();
+				.retrievalMode(resolveRetrievalMode(annotation.retrievalMode()))
+				.initialPositionInStream(resolveInitialPositionInStream(annotation.initialPositionInStream()))
+				.consumerName(resolveOptional(annotation.consumerName()))
+				.leaseTableName(resolveOptional(annotation.leaseTableName()))
+				.metricsNamespace(resolveOptional(annotation.metricsNamespace()))
+				.replyStream(resolveReplyStream(method)).build();
 	}
 
 	@Nullable
@@ -156,9 +161,27 @@ public class KclListenerAnnotationBeanPostProcessor
 	}
 
 	@Nullable
+	private InitialPositionInStream resolveInitialPositionInStream(String value) {
+		InitialPositionInStream initialPosition = resolveEnum(value, InitialPositionInStream::valueOf);
+		Assert.isTrue(initialPosition != InitialPositionInStream.AT_TIMESTAMP,
+				"AT_TIMESTAMP is not supported on @KclListener because the annotation cannot carry a timestamp: set 'initialPositionInStream' to an empty string to fall back to the container factory, and configure AT_TIMESTAMP together with a timestamp there or through the 'spring.cloud.aws.kinesis.listener' properties");
+		return initialPosition;
+	}
+
+	@Nullable
 	private <T> T resolveEnum(String value, Function<String, T> parser) {
 		String resolved = resolve(value);
 		return StringUtils.hasText(resolved) ? parser.apply(resolved) : null;
+	}
+
+	/**
+	 * Resolves an optional attribute, returning {@code null} when it is left empty so that the value configured on the
+	 * container factory is kept.
+	 */
+	@Nullable
+	private String resolveOptional(String value) {
+		String resolved = resolve(value);
+		return StringUtils.hasText(resolved) ? resolved : null;
 	}
 
 	@Nullable

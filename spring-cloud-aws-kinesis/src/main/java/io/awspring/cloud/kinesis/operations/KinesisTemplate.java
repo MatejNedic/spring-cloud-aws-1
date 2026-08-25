@@ -34,6 +34,11 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
+ * Default {@link KinesisOperations} implementation, sending records through a {@link KinesisAsyncClient}.
+ * <p>
+ * Synchronous methods delegate to their asynchronous counterparts and unwrap the {@link CompletionException} so callers
+ * see the original AWS exception. Batches are sent with a single {@code PutRecords} call.
+ *
  * @author Matej Nedic
  * @since 4.2.0
  */
@@ -43,10 +48,20 @@ public class KinesisTemplate implements KinesisOperations {
 
 	private final KinesisMessageConverter messageConverter;
 
+	/**
+	 * Creates a template converting payloads with the default converter backed by the given {@link JsonMapper}.
+	 * @param kinesisAsyncClient the client to send records with.
+	 * @param jsonMapper the mapper used to serialize non-{@code byte[]}/{@code String} payloads.
+	 */
 	public KinesisTemplate(KinesisAsyncClient kinesisAsyncClient, JsonMapper jsonMapper) {
 		this(kinesisAsyncClient, defaultMessageConverter(jsonMapper));
 	}
 
+	/**
+	 * Creates a template converting payloads with the given converter.
+	 * @param kinesisAsyncClient the client to send records with.
+	 * @param messageConverter the converter used to serialize payloads.
+	 */
 	public KinesisTemplate(KinesisAsyncClient kinesisAsyncClient, KinesisMessageConverter messageConverter) {
 		Assert.notNull(kinesisAsyncClient, "kinesisAsyncClient must not be null");
 		Assert.notNull(messageConverter, "messageConverter must not be null");
