@@ -16,7 +16,7 @@
 package io.awspring.cloud.autoconfigure.kinesis;
 
 import io.awspring.cloud.autoconfigure.AwsClientProperties;
-import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointMode;
 import io.awspring.cloud.kinesis.listener.retrieval.RetrievalMode;
 import java.time.Duration;
 import java.time.Instant;
@@ -57,7 +57,7 @@ public class KinesisProperties extends AwsClientProperties {
 		private RetrievalMode retrievalMode;
 
 		@Nullable
-		private CheckpointMode checkpointMode;
+		private KclCheckpointMode checkpointMode;
 
 		@Nullable
 		private InitialPositionInStream initialPosition;
@@ -120,11 +120,11 @@ public class KinesisProperties extends AwsClientProperties {
 		}
 
 		@Nullable
-		public CheckpointMode getCheckpointMode() {
+		public KclCheckpointMode getCheckpointMode() {
 			return this.checkpointMode;
 		}
 
-		public void setCheckpointMode(CheckpointMode checkpointMode) {
+		public void setCheckpointMode(KclCheckpointMode checkpointMode) {
 			this.checkpointMode = checkpointMode;
 		}
 

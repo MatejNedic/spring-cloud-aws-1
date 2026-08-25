@@ -21,7 +21,7 @@ import io.awspring.cloud.kinesis.config.KclListenerEndpoint;
 import io.awspring.cloud.kinesis.config.MessageListenerContainerFactory;
 import io.awspring.cloud.kinesis.listener.MessageListenerContainer;
 import io.awspring.cloud.kinesis.listener.MessageListenerContainerRegistry;
-import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointMode;
 import io.awspring.cloud.kinesis.listener.retrieval.RetrievalMode;
 import io.awspring.cloud.kinesis.support.resolver.BatchMessagesArgumentResolver;
 import io.awspring.cloud.kinesis.support.resolver.CheckpointerArgumentResolver;
@@ -127,19 +127,19 @@ public class KclListenerAnnotationBeanPostProcessor
 			MessageListenerContainer container = resolveContainerFactory(endpoint).createContainer(endpoint);
 			registry.registerListenerContainer(container);
 			logger.info("Registered @KclListener container '{}' for stream '{}'", container.getId(),
-					endpoint.getStreamName());
+					endpoint.getStreamNames());
 		}
 	}
 
 	private KclListenerEndpoint createEndpoint(Object bean, Method method, KclListener annotation) {
 		String id = getEndpointId(annotation.id());
-		String streamName = resolveRequired(annotation.streamName(), "streamName");
+		List<String> streamNames = resolveStreamNames(annotation.streamNames());
 		String applicationName = StringUtils.hasText(annotation.applicationName())
 				? resolveRequired(annotation.applicationName(), "applicationName")
 				: id;
 		String factory = resolve(annotation.factory());
 		String factoryBeanName = StringUtils.hasText(factory) ? factory : null;
-		return KclListenerEndpoint.builder().id(id).streamName(streamName).applicationName(applicationName)
+		return KclListenerEndpoint.builder().id(id).streamNames(streamNames).applicationName(applicationName)
 				.factoryBeanName(factoryBeanName).bean(bean).method(method)
 				.checkpointMode(resolveCheckpointMode(annotation.checkpointMode()))
 				.retrievalMode(resolveRetrievalMode(annotation.retrievalMode()))
@@ -150,9 +150,18 @@ public class KclListenerAnnotationBeanPostProcessor
 				.replyStream(resolveReplyStream(method)).build();
 	}
 
+	private List<String> resolveStreamNames(String[] streamNames) {
+		Assert.notEmpty(streamNames, "At least one stream name must be provided on @KclListener");
+		List<String> resolved = new ArrayList<>(streamNames.length);
+		for (String streamName : streamNames) {
+			resolved.add(resolveRequired(streamName, "streamNames"));
+		}
+		return resolved;
+	}
+
 	@Nullable
-	private CheckpointMode resolveCheckpointMode(String value) {
-		return resolveEnum(value, CheckpointMode::valueOf);
+	private KclCheckpointMode resolveCheckpointMode(String value) {
+		return resolveEnum(value, KclCheckpointMode::valueOf);
 	}
 
 	@Nullable

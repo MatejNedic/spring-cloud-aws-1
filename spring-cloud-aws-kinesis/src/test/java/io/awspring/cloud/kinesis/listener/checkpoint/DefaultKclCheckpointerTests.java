@@ -21,7 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import io.awspring.cloud.kinesis.support.converter.KinesisHeaders;
+import io.awspring.cloud.kinesis.support.converter.KinesisMessageHeaders;
 import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,12 +36,12 @@ import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
  * @author Matej Nedic
  * @since 4.2.0
  */
-class KclCheckpointerTests {
+class DefaultKclCheckpointerTests {
 
 	private final RecordProcessorCheckpointer delegate = mock(RecordProcessorCheckpointer.class);
 
-	private KclCheckpointer checkpointer(int maxRetries) {
-		return new KclCheckpointer(this.delegate, maxRetries, Duration.ofMillis(1));
+	private DefaultKclCheckpointer checkpointer(int maxRetries) {
+		return new DefaultKclCheckpointer(this.delegate, maxRetries, Duration.ofMillis(1));
 	}
 
 	@Test
@@ -54,8 +54,8 @@ class KclCheckpointerTests {
 	@Test
 	@DisplayName("checkpoint(message) uses the sequence number when no subsequence is present")
 	void checkpointMessageUsesSequenceNumber() throws Exception {
-		Message<String> message = MessageBuilder.withPayload("p").setHeader(KinesisHeaders.SEQUENCE_NUMBER, "seq-1")
-				.build();
+		Message<String> message = MessageBuilder.withPayload("p")
+				.setHeader(KinesisMessageHeaders.SEQUENCE_NUMBER, "seq-1").build();
 		checkpointer(3).checkpoint(message);
 		verify(this.delegate).checkpoint("seq-1");
 	}
@@ -63,8 +63,9 @@ class KclCheckpointerTests {
 	@Test
 	@DisplayName("checkpoint(message) uses sequence and subsequence when subsequence > 0")
 	void checkpointMessageUsesSubsequenceNumber() throws Exception {
-		Message<String> message = MessageBuilder.withPayload("p").setHeader(KinesisHeaders.SEQUENCE_NUMBER, "seq-1")
-				.setHeader(KinesisHeaders.SUBSEQUENCE_NUMBER, 5L).build();
+		Message<String> message = MessageBuilder.withPayload("p")
+				.setHeader(KinesisMessageHeaders.SEQUENCE_NUMBER, "seq-1")
+				.setHeader(KinesisMessageHeaders.SUBSEQUENCE_NUMBER, 5L).build();
 		checkpointer(3).checkpoint(message);
 		verify(this.delegate).checkpoint("seq-1", 5L);
 	}

@@ -28,16 +28,16 @@ class KinesisHeaderMapper {
 
 	public Map<String, Object> toHeaders(KinesisClientRecord record, @Nullable String shardId, String streamName) {
 		Map<String, Object> headers = new HashMap<>();
-		headers.put(KinesisHeaders.PARTITION_KEY, record.partitionKey());
-		headers.put(KinesisHeaders.SEQUENCE_NUMBER, record.sequenceNumber());
-		headers.put(KinesisHeaders.SUBSEQUENCE_NUMBER, record.subSequenceNumber());
+		headers.put(KinesisMessageHeaders.PARTITION_KEY, record.partitionKey());
+		headers.put(KinesisMessageHeaders.SEQUENCE_NUMBER, record.sequenceNumber());
+		headers.put(KinesisMessageHeaders.SUBSEQUENCE_NUMBER, record.subSequenceNumber());
 		if (record.approximateArrivalTimestamp() != null) {
-			headers.put(KinesisHeaders.APPROXIMATE_ARRIVAL_TIMESTAMP, record.approximateArrivalTimestamp());
+			headers.put(KinesisMessageHeaders.APPROXIMATE_ARRIVAL_TIMESTAMP, record.approximateArrivalTimestamp());
 		}
 		if (shardId != null) {
-			headers.put(KinesisHeaders.SHARD_ID, shardId);
+			headers.put(KinesisMessageHeaders.SHARD_ID, shardId);
 		}
-		headers.put(KinesisHeaders.STREAM_NAME, streamName);
+		headers.put(KinesisMessageHeaders.STREAM_NAME, streamName);
 		return headers;
 	}
 

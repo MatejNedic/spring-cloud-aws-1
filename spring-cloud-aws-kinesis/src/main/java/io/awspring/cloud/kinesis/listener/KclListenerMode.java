@@ -13,20 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.awspring.cloud.kinesis.listener.checkpoint;
+package io.awspring.cloud.kinesis.listener;
 
 /**
  * @author Matej Nedic
  * @since 4.2.0
  */
-public enum CheckpointMode {
+public enum KclListenerMode {
 
-	BATCH,
+	SINGLE_RECORD,
 
-	RECORD,
-
-	PERIODIC,
-
-	MANUAL
+	BATCH
 
 }

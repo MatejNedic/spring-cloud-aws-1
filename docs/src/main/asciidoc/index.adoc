@@ -150,8 +150,6 @@ include::sns.adoc[]
 
 include::sqs.adoc[]
 
-include::kinesis.adoc[]
-
 include::imds.adoc[]
 
 include::secrets-manager.adoc[]

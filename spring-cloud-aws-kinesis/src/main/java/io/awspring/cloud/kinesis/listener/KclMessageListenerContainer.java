@@ -15,20 +15,21 @@
  */
 package io.awspring.cloud.kinesis.listener;
 
-import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointMode;
 import io.awspring.cloud.kinesis.listener.errorhandler.ErrorHandler;
 import io.awspring.cloud.kinesis.listener.errorhandler.LoggingErrorHandler;
 import io.awspring.cloud.kinesis.listener.retrieval.FanOutRetrievalConfigurer;
 import io.awspring.cloud.kinesis.listener.retrieval.KclRetrievalConfigurer;
 import io.awspring.cloud.kinesis.listener.retrieval.PollingRetrievalConfigurer;
 import io.awspring.cloud.kinesis.support.converter.KinesisMessagingMessageConverter;
+import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,14 +41,15 @@ import software.amazon.kinesis.checkpoint.CheckpointConfig;
 import software.amazon.kinesis.common.ConfigsBuilder;
 import software.amazon.kinesis.common.InitialPositionInStream;
 import software.amazon.kinesis.common.InitialPositionInStreamExtended;
+import software.amazon.kinesis.common.StreamIdentifier;
 import software.amazon.kinesis.coordinator.CoordinatorConfig;
 import software.amazon.kinesis.coordinator.Scheduler;
 import software.amazon.kinesis.leases.LeaseManagementConfig;
 import software.amazon.kinesis.lifecycle.LifecycleConfig;
 import software.amazon.kinesis.metrics.MetricsConfig;
 import software.amazon.kinesis.processor.ProcessorConfig;
+import software.amazon.kinesis.processor.ShardRecordProcessor;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
-import software.amazon.kinesis.processor.SingleStreamTracker;
 import software.amazon.kinesis.retrieval.RetrievalConfig;
 import software.amazon.kinesis.retrieval.RetrievalSpecificConfig;
 
@@ -65,7 +67,7 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 
 	private final CloudWatchAsyncClient cloudWatchClient;
 
-	private final String streamName;
+	private final Collection<String> streamNames;
 
 	private final String applicationName;
 
@@ -75,9 +77,9 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 
 	private final KinesisMessagingMessageConverter messageConverter;
 
-	private ListenerMode listenerMode = ListenerMode.SINGLE_RECORD;
+	private KclListenerMode listenerMode = KclListenerMode.SINGLE_RECORD;
 
-	private CheckpointMode checkpointMode;
+	private KclCheckpointMode checkpointMode;
 
 	private ErrorHandler errorHandler = new LoggingErrorHandler();
 
@@ -101,16 +103,33 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 	public KclMessageListenerContainer(KinesisAsyncClient kinesisClient, DynamoDbAsyncClient dynamoDbClient,
 			CloudWatchAsyncClient cloudWatchClient, String streamName, String applicationName,
 			KclContainerOptions options) {
+		this(kinesisClient, dynamoDbClient, cloudWatchClient, List.of(streamName), applicationName, options);
+	}
+
+	/**
+	 * Creates a container consuming the given streams. Several streams are handled by one KCL application, and
+	 * therefore share its lease table and workers.
+	 * @param kinesisClient the Kinesis client.
+	 * @param dynamoDbClient the DynamoDB client holding the lease table.
+	 * @param cloudWatchClient the CloudWatch client KCL publishes metrics with.
+	 * @param streamNames the streams to consume, must not be empty.
+	 * @param applicationName the KCL application name.
+	 * @param options the container options.
+	 */
+	public KclMessageListenerContainer(KinesisAsyncClient kinesisClient, DynamoDbAsyncClient dynamoDbClient,
+			CloudWatchAsyncClient cloudWatchClient, Collection<String> streamNames, String applicationName,
+			KclContainerOptions options) {
 		Assert.notNull(kinesisClient, "kinesisClient must not be null");
 		Assert.notNull(dynamoDbClient, "dynamoDbClient must not be null");
 		Assert.notNull(cloudWatchClient, "cloudWatchClient must not be null");
-		Assert.hasText(streamName, "streamName must not be empty");
+		Assert.notEmpty(streamNames, "streamNames must not be empty");
+		streamNames.forEach(streamName -> Assert.hasText(streamName, "streamName must not be empty"));
 		Assert.hasText(applicationName, "applicationName must not be empty");
 		Assert.notNull(options, "options must not be null");
 		this.kinesisClient = kinesisClient;
 		this.dynamoDbClient = dynamoDbClient;
 		this.cloudWatchClient = cloudWatchClient;
-		this.streamName = streamName;
+		this.streamNames = List.copyOf(streamNames);
 		this.applicationName = applicationName;
 		this.options = options;
 		this.messageConverter = new KinesisMessagingMessageConverter();
@@ -118,11 +137,20 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 			this.messageConverter.setContentType(options.getPayloadContentType());
 		}
 		this.checkpointMode = options.getCheckpointMode();
-		this.id = streamName;
+		this.id = String.join(",", this.streamNames);
 	}
 
 	public KclContainerOptions getContainerOptions() {
 		return this.options;
+	}
+
+	/**
+	 * The streams this container consumes. More than one stream means the container runs KCL in multi-stream mode under
+	 * a single application.
+	 * @return the stream names.
+	 */
+	public Collection<String> getStreamNames() {
+		return this.streamNames;
 	}
 
 	public void setMessageListener(MessageListener messageListener) {
@@ -145,17 +173,17 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 		return this.batchMessageListener;
 	}
 
-	public void setListenerMode(ListenerMode listenerMode) {
+	public void setListenerMode(KclListenerMode listenerMode) {
 		Assert.notNull(listenerMode, "listenerMode must not be null");
 		this.listenerMode = listenerMode;
 	}
 
-	public void setCheckpointMode(CheckpointMode checkpointMode) {
+	public void setCheckpointMode(KclCheckpointMode checkpointMode) {
 		Assert.notNull(checkpointMode, "checkpointMode must not be null");
 		this.checkpointMode = checkpointMode;
 	}
 
-	public CheckpointMode getCheckpointMode() {
+	public KclCheckpointMode getCheckpointMode() {
 		return this.checkpointMode;
 	}
 
@@ -166,7 +194,7 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 
 	@Override
 	public String getId() {
-		return this.id != null ? this.id : this.streamName;
+		return this.id != null ? this.id : String.join(",", this.streamNames);
 	}
 
 	@Override
@@ -182,16 +210,30 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 			}
 			Assert.state(this.messageListener != null || this.batchMessageListener != null,
 					"A messageListener or batchMessageListener must be set before starting the container");
-			this.scheduler = createScheduler();
+			normalizeCheckpointMode();
+			Scheduler currentScheduler = createScheduler();
+			this.scheduler = currentScheduler;
 			this.executorService = Executors.newSingleThreadExecutor(runnable -> {
 				Thread thread = new Thread(runnable, "kcl-" + getId());
 				thread.setDaemon(true);
 				return thread;
 			});
-			this.executorService.submit(() -> runScheduler(this.scheduler));
+			this.executorService.submit(() -> runScheduler(currentScheduler));
 			this.running = true;
-			logger.info("Started KCL container '{}' for stream '{}' (application '{}')", getId(), this.streamName,
+			logger.info("Started KCL container '{}' for streams {} (application '{}')", getId(), this.streamNames,
 					this.applicationName);
+		}
+	}
+
+	/**
+	 * Downgrades {@link KclCheckpointMode#RECORD} to {@link KclCheckpointMode#BATCH} for batch listeners: a batch
+	 * listener has no per-record completion boundary, so there is nothing to checkpoint a single record against.
+	 */
+	private void normalizeCheckpointMode() {
+		if (this.listenerMode == KclListenerMode.BATCH && this.checkpointMode == KclCheckpointMode.RECORD) {
+			logger.warn("Checkpoint mode of container '{}' is overridden from RECORD to BATCH, "
+					+ "because RECORD has no meaning for a batch listener", getId());
+			this.checkpointMode = KclCheckpointMode.BATCH;
 		}
 	}
 
@@ -212,7 +254,7 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 			}
 			this.scheduler = null;
 			this.executorService = null;
-			logger.info("Stopped KCL container '{}' for stream '{}'", getId(), this.streamName);
+			logger.info("Stopped KCL container '{}' for streams {}", getId(), this.streamNames);
 		}
 	}
 
@@ -264,7 +306,7 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 		ConfigsBuilder configsBuilder = getConfigsBuilder(initialPosition);
 
 		RetrievalSpecificConfig retrievalSpecificConfig = createRetrievalConfigurer()
-				.createRetrievalConfig(this.streamName, this.applicationName, this.kinesisClient, this.options);
+				.createRetrievalConfig(this.streamNames, this.applicationName, this.kinesisClient, this.options);
 
 		CheckpointConfig checkpointConfig = configsBuilder.checkpointConfig();
 		CoordinatorConfig coordinatorConfig = configsBuilder.coordinatorConfig();
@@ -282,6 +324,9 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 		if (this.options.getBillingMode() != null) {
 			leaseManagementConfig.billingMode(this.options.getBillingMode());
 		}
+		if (this.checkpointMode == KclCheckpointMode.PERIODIC) {
+			processorConfig.callProcessRecordsEvenForEmptyRecordList(true);
+		}
 
 		applyCustomizer(this.options.getCheckpointConfigCustomizer(), checkpointConfig);
 		applyCustomizer(this.options.getCoordinatorConfigCustomizer(), coordinatorConfig);
@@ -295,13 +340,22 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 				processorConfig, retrievalConfig);
 	}
 
-	@NotNull
 	private ConfigsBuilder getConfigsBuilder(InitialPositionInStreamExtended initialPosition) {
-		ShardRecordProcessorFactory processorFactory = () -> new KclShardRecordProcessor(this.messageConverter,
-				this.listenerMode, this.checkpointMode, this.options.getCheckpointRecordCount(),
-				this.options.getCheckpointInterval(), this.messageListener, this.batchMessageListener,
-				this.errorHandler, this.streamName);
-		ConfigsBuilder configsBuilder = new ConfigsBuilder(new SingleStreamTracker(this.streamName, initialPosition),
+		ShardRecordProcessorFactory processorFactory = new ShardRecordProcessorFactory() {
+
+			@Override
+			public ShardRecordProcessor shardRecordProcessor() {
+				return createRecordProcessor(KclMessageListenerContainer.this.streamNames.iterator().next());
+			}
+
+			@Override
+			public ShardRecordProcessor shardRecordProcessor(StreamIdentifier streamIdentifier) {
+				return createRecordProcessor(streamIdentifier.streamName());
+			}
+
+		};
+		ConfigsBuilder configsBuilder = new ConfigsBuilder(
+				StreamTrackerFactory.createStreamTracker(this.streamNames, initialPosition, this.kinesisClient),
 				this.applicationName, this.kinesisClient, this.dynamoDbClient, this.cloudWatchClient,
 				this.options.getWorkerIdentifier(), processorFactory);
 		if (this.options.getLeaseTableName() != null) {
@@ -311,6 +365,12 @@ public class KclMessageListenerContainer implements MessageListenerContainer {
 			configsBuilder.namespace(this.options.getMetricsNamespace());
 		}
 		return configsBuilder;
+	}
+
+	private KclShardRecordProcessor createRecordProcessor(String streamName) {
+		return new KclShardRecordProcessor(this.messageConverter, this.listenerMode, this.checkpointMode,
+				this.options.getCheckpointRecordCount(), this.options.getCheckpointInterval(), this.messageListener,
+				this.batchMessageListener, this.errorHandler, streamName);
 	}
 
 	private InitialPositionInStreamExtended resolveInitialPosition() {

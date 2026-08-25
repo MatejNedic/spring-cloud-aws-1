@@ -16,8 +16,8 @@
 package io.awspring.cloud.kinesis.config;
 
 import io.awspring.cloud.kinesis.listener.KclContainerOptions;
+import io.awspring.cloud.kinesis.listener.KclListenerMode;
 import io.awspring.cloud.kinesis.listener.KclMessageListenerContainer;
-import io.awspring.cloud.kinesis.listener.ListenerMode;
 import io.awspring.cloud.kinesis.listener.MessageListenerContainer;
 import io.awspring.cloud.kinesis.listener.adapter.BatchMessagingMessageListenerAdapter;
 import io.awspring.cloud.kinesis.listener.adapter.MessagingMessageListenerAdapter;
@@ -37,6 +37,9 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 
 /**
+ * {@link MessageListenerContainerFactory} creating {@link KclMessageListenerContainer} instances backed by the Kinesis
+ * Client Library.
+ *
  * @author Matej Nedic
  * @since 4.2.0
  */
@@ -80,7 +83,7 @@ public class KclMessageListenerContainerFactory implements MessageListenerContai
 	}
 
 	@Override
-	public MessageListenerContainer createContainer(KclListenerEndpoint endpoint) {
+	public MessageListenerContainer createContainer(KclEndpoint endpoint) {
 		Assert.notNull(endpoint, "endpoint must not be null");
 		KclContainerOptions.Builder optionsBuilder = KclContainerOptions.builder();
 		if (this.optionsConsumer != null) {
@@ -93,7 +96,8 @@ public class KclMessageListenerContainerFactory implements MessageListenerContai
 		applyWhenNonNull(endpoint.getLeaseTableName(), optionsBuilder::leaseTableName);
 		applyWhenNonNull(endpoint.getMetricsNamespace(), optionsBuilder::metricsNamespace);
 		KclMessageListenerContainer container = new KclMessageListenerContainer(this.kinesisClient, this.dynamoDbClient,
-				this.cloudWatchClient, endpoint.getStreamName(), endpoint.getApplicationName(), optionsBuilder.build());
+				this.cloudWatchClient, endpoint.getStreamNames(), endpoint.getApplicationName(),
+				optionsBuilder.build());
 		container.setId(endpoint.getId());
 		applyWhenNonNull(endpoint.getCheckpointMode(), container::setCheckpointMode);
 		applyWhenNonNull(this.errorHandler, container::setErrorHandler);
@@ -107,17 +111,20 @@ public class KclMessageListenerContainerFactory implements MessageListenerContai
 		}
 	}
 
-	private void configureListener(KclMessageListenerContainer container, KclListenerEndpoint endpoint) {
-		InvocableHandlerMethod handlerMethod = endpoint.getHandlerMethodFactory()
-				.createInvocableHandlerMethod(endpoint.getBean(), endpoint.getMethod());
+	protected void configureListener(KclMessageListenerContainer container, KclEndpoint endpoint) {
+		if (!(endpoint instanceof KclHandlerMethodEndpoint handlerMethodEndpoint)) {
+			return;
+		}
+		InvocableHandlerMethod handlerMethod = handlerMethodEndpoint.getHandlerMethodFactory()
+				.createInvocableHandlerMethod(handlerMethodEndpoint.getBean(), handlerMethodEndpoint.getMethod());
 		String replyStream = endpoint.getReplyStream();
-		if (isBatchListener(endpoint.getMethod())) {
-			container.setListenerMode(ListenerMode.BATCH);
+		if (isBatchListener(handlerMethodEndpoint.getMethod())) {
+			container.setListenerMode(KclListenerMode.BATCH);
 			container.setBatchMessageListener(
 					new BatchMessagingMessageListenerAdapter(handlerMethod, this.kinesisOperations, replyStream));
 		}
 		else {
-			container.setListenerMode(ListenerMode.SINGLE_RECORD);
+			container.setListenerMode(KclListenerMode.SINGLE_RECORD);
 			container.setMessageListener(
 					new MessagingMessageListenerAdapter(handlerMethod, this.kinesisOperations, replyStream));
 		}

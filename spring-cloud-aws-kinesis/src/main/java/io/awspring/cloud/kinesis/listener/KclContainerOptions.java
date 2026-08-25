@@ -15,7 +15,7 @@
  */
 package io.awspring.cloud.kinesis.listener;
 
-import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointMode;
 import io.awspring.cloud.kinesis.listener.retrieval.RetrievalMode;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -60,7 +60,7 @@ public final class KclContainerOptions {
 
 	private final RetrievalMode retrievalMode;
 
-	private final CheckpointMode checkpointMode;
+	private final KclCheckpointMode checkpointMode;
 
 	private final boolean autoStartup;
 
@@ -207,7 +207,7 @@ public final class KclContainerOptions {
 		return this.retrievalMode;
 	}
 
-	public CheckpointMode getCheckpointMode() {
+	public KclCheckpointMode getCheckpointMode() {
 		return this.checkpointMode;
 	}
 
@@ -312,7 +312,7 @@ public final class KclContainerOptions {
 
 		private RetrievalMode retrievalMode = RetrievalMode.POLLING;
 
-		private CheckpointMode checkpointMode = CheckpointMode.BATCH;
+		private KclCheckpointMode checkpointMode = KclCheckpointMode.BATCH;
 
 		private boolean autoStartup = true;
 
@@ -414,7 +414,7 @@ public final class KclContainerOptions {
 			return this;
 		}
 
-		public Builder checkpointMode(CheckpointMode checkpointMode) {
+		public Builder checkpointMode(KclCheckpointMode checkpointMode) {
 			Assert.notNull(checkpointMode, "checkpointMode must not be null");
 			this.checkpointMode = checkpointMode;
 			return this;

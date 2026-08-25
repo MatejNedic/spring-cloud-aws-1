@@ -20,10 +20,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import io.awspring.cloud.kinesis.listener.KclMessageListenerContainer;
-import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode;
-import io.awspring.cloud.kinesis.listener.checkpoint.Checkpointer;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointMode;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointer;
 import io.awspring.cloud.kinesis.operations.KinesisOperations;
-import io.awspring.cloud.kinesis.support.converter.KinesisHeaders;
+import io.awspring.cloud.kinesis.support.converter.KinesisMessageHeaders;
 import io.awspring.cloud.kinesis.support.resolver.BatchMessagesArgumentResolver;
 import io.awspring.cloud.kinesis.support.resolver.CheckpointerArgumentResolver;
 import java.lang.reflect.Method;
@@ -65,22 +65,22 @@ class KclMessageListenerContainerFactoryTests {
 				.createContainer(endpoint(bean, "handle", String.class, String.class));
 
 		container.getMessageListener().onMessage(MessageBuilder.withPayload("hello".getBytes(StandardCharsets.UTF_8))
-				.setHeader(KinesisHeaders.PARTITION_KEY, "pk-1").build());
+				.setHeader(KinesisMessageHeaders.PARTITION_KEY, "pk-1").build());
 
 		assertThat(bean.payloads).containsExactly("hello");
 		assertThat(bean.partitionKeys).containsExactly("pk-1");
 	}
 
 	@Test
-	@DisplayName("Checkpointer is injected from headers for MANUAL checkpointing")
+	@DisplayName("KclCheckpointer is injected from headers for MANUAL checkpointing")
 	void injectsCheckpointer() throws Exception {
 		RecordingListener bean = new RecordingListener();
 		KclMessageListenerContainer container = (KclMessageListenerContainer) this.factory
-				.createContainer(endpoint(bean, "handleWithCheckpointer", String.class, Checkpointer.class));
-		Checkpointer checkpointer = mock(Checkpointer.class);
+				.createContainer(endpoint(bean, "handleWithCheckpointer", String.class, KclCheckpointer.class));
+		KclCheckpointer checkpointer = mock(KclCheckpointer.class);
 
 		container.getMessageListener().onMessage(MessageBuilder.withPayload("hi".getBytes(StandardCharsets.UTF_8))
-				.setHeader(KinesisHeaders.CHECKPOINTER, checkpointer).build());
+				.setHeader(KinesisMessageHeaders.CHECKPOINTER, checkpointer).build());
 
 		assertThat(bean.payloads).containsExactly("hi");
 		verify(checkpointer).checkpoint();
@@ -115,23 +115,23 @@ class KclMessageListenerContainerFactoryTests {
 	@Test
 	@DisplayName("checkpoint mode configured on the factory options is kept when the endpoint does not specify one")
 	void checkpointModeFromOptionsPreservedWhenEndpointUnset() throws Exception {
-		this.factory.configure(options -> options.checkpointMode(CheckpointMode.RECORD));
+		this.factory.configure(options -> options.checkpointMode(KclCheckpointMode.RECORD));
 		KclMessageListenerContainer container = (KclMessageListenerContainer) this.factory
 				.createContainer(endpoint(new RecordingListener(), "handle", String.class, String.class));
 
-		assertThat(container.getCheckpointMode()).isEqualTo(CheckpointMode.RECORD);
+		assertThat(container.getCheckpointMode()).isEqualTo(KclCheckpointMode.RECORD);
 	}
 
 	@Test
 	@DisplayName("checkpoint mode from the endpoint overrides the factory options")
 	void endpointCheckpointModeOverridesOptions() throws Exception {
-		this.factory.configure(options -> options.checkpointMode(CheckpointMode.RECORD));
+		this.factory.configure(options -> options.checkpointMode(KclCheckpointMode.RECORD));
 		KclListenerEndpoint endpoint = endpointBuilder(new RecordingListener(), "handle", String.class, String.class)
-				.checkpointMode(CheckpointMode.PERIODIC).build();
+				.checkpointMode(KclCheckpointMode.PERIODIC).build();
 		endpoint.setHandlerMethodFactory(handlerMethodFactory());
 		KclMessageListenerContainer container = (KclMessageListenerContainer) this.factory.createContainer(endpoint);
 
-		assertThat(container.getCheckpointMode()).isEqualTo(CheckpointMode.PERIODIC);
+		assertThat(container.getCheckpointMode()).isEqualTo(KclCheckpointMode.PERIODIC);
 	}
 
 	@Test
@@ -175,6 +175,18 @@ class KclMessageListenerContainerFactoryTests {
 	}
 
 	@Test
+	@DisplayName("a multi-stream endpoint yields a single container consuming every stream")
+	void multiStreamEndpointCreatesOneContainerForAllStreams() throws Exception {
+		KclListenerEndpoint endpoint = endpointBuilder(new RecordingListener(), "handle", String.class, String.class)
+				.streamNames(List.of("orders", "shipments")).build();
+		endpoint.setHandlerMethodFactory(handlerMethodFactory());
+
+		KclMessageListenerContainer container = (KclMessageListenerContainer) this.factory.createContainer(endpoint);
+
+		assertThat(container.getStreamNames()).containsExactly("orders", "shipments");
+	}
+
+	@Test
 	@DisplayName("batch listener converts each record payload to the declared element type")
 	void batchListenerConvertsPayloadElements() throws Exception {
 		RecordingListener bean = new RecordingListener();
@@ -189,19 +201,19 @@ class KclMessageListenerContainerFactoryTests {
 	}
 
 	@Test
-	@DisplayName("a batch listener receives the Checkpointer shared by the batch records")
+	@DisplayName("a batch listener receives the KclCheckpointer shared by the batch records")
 	void batchListenerReceivesSharedCheckpointer() throws Exception {
 		RecordingListener bean = new RecordingListener();
 		KclMessageListenerContainer container = (KclMessageListenerContainer) this.factory
-				.createContainer(endpoint(bean, "handleOrdersWithCheckpointer", List.class, Checkpointer.class));
-		Checkpointer checkpointer = mock(Checkpointer.class);
+				.createContainer(endpoint(bean, "handleOrdersWithCheckpointer", List.class, KclCheckpointer.class));
+		KclCheckpointer checkpointer = mock(KclCheckpointer.class);
 
 		container.getBatchMessageListener()
 				.onMessage(List.of(
 						MessageBuilder.withPayload("{\"id\":\"a\"}".getBytes(StandardCharsets.UTF_8))
-								.setHeader(KinesisHeaders.CHECKPOINTER, checkpointer).build(),
+								.setHeader(KinesisMessageHeaders.CHECKPOINTER, checkpointer).build(),
 						MessageBuilder.withPayload("{\"id\":\"b\"}".getBytes(StandardCharsets.UTF_8))
-								.setHeader(KinesisHeaders.CHECKPOINTER, checkpointer).build()));
+								.setHeader(KinesisMessageHeaders.CHECKPOINTER, checkpointer).build()));
 
 		assertThat(bean.orderIds).containsExactly("a", "b");
 		verify(checkpointer).checkpoint();
@@ -259,12 +271,12 @@ class KclMessageListenerContainerFactoryTests {
 
 		private final List<String> orderIds = new ArrayList<>();
 
-		void handle(String payload, @Header(KinesisHeaders.PARTITION_KEY) String partitionKey) {
+		void handle(String payload, @Header(KinesisMessageHeaders.PARTITION_KEY) String partitionKey) {
 			this.payloads.add(payload);
 			this.partitionKeys.add(partitionKey);
 		}
 
-		void handleWithCheckpointer(String payload, Checkpointer checkpointer) {
+		void handleWithCheckpointer(String payload, KclCheckpointer checkpointer) {
 			this.payloads.add(payload);
 			checkpointer.checkpoint();
 		}
@@ -281,7 +293,7 @@ class KclMessageListenerContainerFactoryTests {
 			orders.forEach(order -> this.orderIds.add(order.getId()));
 		}
 
-		void handleOrdersWithCheckpointer(List<Order> orders, Checkpointer checkpointer) {
+		void handleOrdersWithCheckpointer(List<Order> orders, KclCheckpointer checkpointer) {
 			orders.forEach(order -> this.orderIds.add(order.getId()));
 			checkpointer.checkpoint();
 		}

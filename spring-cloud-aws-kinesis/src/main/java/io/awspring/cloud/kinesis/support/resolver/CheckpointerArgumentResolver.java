@@ -15,8 +15,8 @@
  */
 package io.awspring.cloud.kinesis.support.resolver;
 
-import io.awspring.cloud.kinesis.listener.checkpoint.Checkpointer;
-import io.awspring.cloud.kinesis.support.converter.KinesisHeaders;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointer;
+import io.awspring.cloud.kinesis.support.converter.KinesisMessageHeaders;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
 import org.springframework.messaging.Message;
@@ -30,13 +30,13 @@ public class CheckpointerArgumentResolver implements HandlerMethodArgumentResolv
 
 	@Override
 	public boolean supportsParameter(MethodParameter parameter) {
-		return Checkpointer.class.isAssignableFrom(parameter.getParameterType());
+		return KclCheckpointer.class.isAssignableFrom(parameter.getParameterType());
 	}
 
 	@Override
 	@Nullable
 	public Object resolveArgument(MethodParameter parameter, Message<?> message) {
-		return message.getHeaders().get(KinesisHeaders.CHECKPOINTER, Checkpointer.class);
+		return message.getHeaders().get(KinesisMessageHeaders.CHECKPOINTER, KclCheckpointer.class);
 	}
 
 }

@@ -17,6 +17,7 @@ package io.awspring.cloud.kinesis.listener;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -24,11 +25,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode;
-import io.awspring.cloud.kinesis.listener.checkpoint.Checkpointer;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointMode;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointer;
 import io.awspring.cloud.kinesis.listener.errorhandler.ErrorHandler;
 import io.awspring.cloud.kinesis.listener.errorhandler.LoggingErrorHandler;
-import io.awspring.cloud.kinesis.support.converter.KinesisHeaders;
+import io.awspring.cloud.kinesis.support.converter.KinesisMessageHeaders;
 import io.awspring.cloud.kinesis.support.converter.KinesisMessagingMessageConverter;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -61,24 +62,24 @@ class KclShardRecordProcessorTests {
 	void convertsRecordsToMessages() {
 		List<Message<?>> received = new ArrayList<>();
 		RecordProcessorCheckpointer checkpointer = mock(RecordProcessorCheckpointer.class);
-		KclShardRecordProcessor processor = singleRecordProcessor(CheckpointMode.MANUAL, received::add, RETHROWING);
+		KclShardRecordProcessor processor = singleRecordProcessor(KclCheckpointMode.MANUAL, received::add, RETHROWING);
 
 		processor.processRecords(input(checkpointer, record("pk-1", "seq-1", "hello")));
 
 		assertThat(received).hasSize(1);
 		Message<?> message = received.get(0);
 		assertThat((byte[]) message.getPayload()).isEqualTo("hello".getBytes(StandardCharsets.UTF_8));
-		assertThat(message.getHeaders().get(KinesisHeaders.PARTITION_KEY)).isEqualTo("pk-1");
-		assertThat(message.getHeaders().get(KinesisHeaders.SHARD_ID)).isEqualTo("shard-1");
-		assertThat(message.getHeaders().get(KinesisHeaders.STREAM_NAME)).isEqualTo("my-stream");
-		assertThat(message.getHeaders().get(KinesisHeaders.CHECKPOINTER)).isInstanceOf(Checkpointer.class);
+		assertThat(message.getHeaders().get(KinesisMessageHeaders.PARTITION_KEY)).isEqualTo("pk-1");
+		assertThat(message.getHeaders().get(KinesisMessageHeaders.SHARD_ID)).isEqualTo("shard-1");
+		assertThat(message.getHeaders().get(KinesisMessageHeaders.STREAM_NAME)).isEqualTo("my-stream");
+		assertThat(message.getHeaders().get(KinesisMessageHeaders.CHECKPOINTER)).isInstanceOf(KclCheckpointer.class);
 	}
 
 	@Test
 	@DisplayName("RECORD checkpoint mode checkpoints after each record")
 	void recordModeCheckpointsPerRecord() throws Exception {
 		RecordProcessorCheckpointer checkpointer = mock(RecordProcessorCheckpointer.class);
-		KclShardRecordProcessor processor = singleRecordProcessor(CheckpointMode.RECORD, message -> {
+		KclShardRecordProcessor processor = singleRecordProcessor(KclCheckpointMode.RECORD, message -> {
 		}, RETHROWING);
 
 		processor.processRecords(input(checkpointer, record("pk", "seq-1", "a"), record("pk", "seq-2", "b")));
@@ -91,7 +92,7 @@ class KclShardRecordProcessorTests {
 	@DisplayName("BATCH checkpoint mode checkpoints once after the batch")
 	void batchModeCheckpointsOnce() throws Exception {
 		RecordProcessorCheckpointer checkpointer = mock(RecordProcessorCheckpointer.class);
-		KclShardRecordProcessor processor = singleRecordProcessor(CheckpointMode.BATCH, message -> {
+		KclShardRecordProcessor processor = singleRecordProcessor(KclCheckpointMode.BATCH, message -> {
 		}, RETHROWING);
 
 		processor.processRecords(input(checkpointer, record("pk", "seq-1", "a"), record("pk", "seq-2", "b")));
@@ -105,7 +106,7 @@ class KclShardRecordProcessorTests {
 	@DisplayName("MANUAL checkpoint mode never checkpoints automatically")
 	void manualModeNeverCheckpoints() {
 		RecordProcessorCheckpointer checkpointer = mock(RecordProcessorCheckpointer.class);
-		KclShardRecordProcessor processor = singleRecordProcessor(CheckpointMode.MANUAL, message -> {
+		KclShardRecordProcessor processor = singleRecordProcessor(KclCheckpointMode.MANUAL, message -> {
 		}, RETHROWING);
 
 		processor.processRecords(input(checkpointer, record("pk", "seq-1", "a")));
@@ -119,8 +120,8 @@ class KclShardRecordProcessorTests {
 		List<Collection<Message<?>>> batches = new ArrayList<>();
 		RecordProcessorCheckpointer checkpointer = mock(RecordProcessorCheckpointer.class);
 		KclShardRecordProcessor processor = new KclShardRecordProcessor(new KinesisMessagingMessageConverter(),
-				ListenerMode.BATCH, CheckpointMode.BATCH, 1000L, Duration.ofSeconds(60), null, batches::add, RETHROWING,
-				"my-stream");
+				KclListenerMode.BATCH, KclCheckpointMode.BATCH, 1000L, Duration.ofSeconds(60), null, batches::add,
+				RETHROWING, "my-stream");
 		processor.initialize(InitializationInput.builder().shardId("shard-1").build());
 
 		processor.processRecords(input(checkpointer, record("pk", "seq-1", "a"), record("pk", "seq-2", "b")));
@@ -135,7 +136,7 @@ class KclShardRecordProcessorTests {
 	void swallowingErrorHandlerAllowsCheckpoint() throws Exception {
 		RecordProcessorCheckpointer checkpointer = mock(RecordProcessorCheckpointer.class);
 		List<Throwable> handled = new ArrayList<>();
-		KclShardRecordProcessor processor = singleRecordProcessor(CheckpointMode.BATCH, message -> {
+		KclShardRecordProcessor processor = singleRecordProcessor(KclCheckpointMode.BATCH, message -> {
 			throw new RuntimeException("boom");
 		}, (message, throwable) -> handled.add(throwable));
 
@@ -149,7 +150,7 @@ class KclShardRecordProcessorTests {
 	@DisplayName("the default logging error handler rethrows, preventing checkpoint")
 	void loggingErrorHandlerRethrowsAndPreventsCheckpoint() throws Exception {
 		RecordProcessorCheckpointer checkpointer = mock(RecordProcessorCheckpointer.class);
-		KclShardRecordProcessor processor = singleRecordProcessor(CheckpointMode.BATCH, message -> {
+		KclShardRecordProcessor processor = singleRecordProcessor(KclCheckpointMode.BATCH, message -> {
 			throw new RuntimeException("boom");
 		}, new LoggingErrorHandler());
 
@@ -162,7 +163,7 @@ class KclShardRecordProcessorTests {
 	@DisplayName("shardEnded always checkpoints")
 	void shardEndedCheckpoints() throws Exception {
 		RecordProcessorCheckpointer checkpointer = mock(RecordProcessorCheckpointer.class);
-		KclShardRecordProcessor processor = singleRecordProcessor(CheckpointMode.MANUAL, message -> {
+		KclShardRecordProcessor processor = singleRecordProcessor(KclCheckpointMode.MANUAL, message -> {
 		}, RETHROWING);
 
 		processor.shardEnded(ShardEndedInput.builder().checkpointer(checkpointer).build());
@@ -174,7 +175,7 @@ class KclShardRecordProcessorTests {
 	@DisplayName("aggregated records (subsequence > 0) checkpoint with the subsequence number")
 	void aggregatedRecordCheckpointsWithSubsequence() throws Exception {
 		RecordProcessorCheckpointer checkpointer = mock(RecordProcessorCheckpointer.class);
-		KclShardRecordProcessor processor = singleRecordProcessor(CheckpointMode.RECORD, message -> {
+		KclShardRecordProcessor processor = singleRecordProcessor(KclCheckpointMode.RECORD, message -> {
 		}, RETHROWING);
 
 		processor.processRecords(input(checkpointer, aggregatedRecord("pk", "seq-1", 7L, "a")));
@@ -196,8 +197,8 @@ class KclShardRecordProcessorTests {
 				.thenThrow(new IllegalArgumentException("bad record"));
 		List<Message<?>> delivered = new ArrayList<>();
 		List<Throwable> handled = new ArrayList<>();
-		KclShardRecordProcessor processor = new KclShardRecordProcessor(converter, ListenerMode.SINGLE_RECORD,
-				CheckpointMode.BATCH, 1000L, Duration.ofSeconds(60), delivered::add, null,
+		KclShardRecordProcessor processor = new KclShardRecordProcessor(converter, KclListenerMode.SINGLE_RECORD,
+				KclCheckpointMode.BATCH, 1000L, Duration.ofSeconds(60), delivered::add, null,
 				(message, throwable) -> handled.add(throwable), "my-stream");
 		processor.initialize(InitializationInput.builder().shardId("shard-1").build());
 
@@ -209,11 +210,43 @@ class KclShardRecordProcessorTests {
 		verify(checkpointer, times(1)).checkpoint();
 	}
 
-	private KclShardRecordProcessor singleRecordProcessor(CheckpointMode checkpointMode, MessageListener listener,
+	@Test
+	@DisplayName("PERIODIC checkpoint mode checkpoints on an empty batch once the interval elapsed with pending records")
+	void periodicModeCheckpointsWhileIdle() {
+		RecordProcessorCheckpointer checkpointer = mock(RecordProcessorCheckpointer.class);
+		KclShardRecordProcessor processor = new KclShardRecordProcessor(new KinesisMessagingMessageConverter(),
+				KclListenerMode.SINGLE_RECORD, KclCheckpointMode.PERIODIC, 1000L, Duration.ofMillis(200), message -> {
+				}, null, RETHROWING, "my-stream");
+		processor.initialize(InitializationInput.builder().shardId("shard-1").build());
+
+		processor.processRecords(input(checkpointer, record("pk", "seq-1", "a")));
+		verifyNoInteractions(checkpointer);
+
+		await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+			processor.processRecords(input(checkpointer));
+			verify(checkpointer, times(1)).checkpoint();
+		});
+	}
+
+	@Test
+	@DisplayName("PERIODIC checkpoint mode does not checkpoint an idle shard with no pending records")
+	void periodicModeSkipsIdleShardWithoutPendingRecords() {
+		RecordProcessorCheckpointer checkpointer = mock(RecordProcessorCheckpointer.class);
+		KclShardRecordProcessor processor = new KclShardRecordProcessor(new KinesisMessagingMessageConverter(),
+				KclListenerMode.SINGLE_RECORD, KclCheckpointMode.PERIODIC, 1000L, Duration.ZERO, message -> {
+				}, null, RETHROWING, "my-stream");
+		processor.initialize(InitializationInput.builder().shardId("shard-1").build());
+
+		processor.processRecords(input(checkpointer));
+
+		verifyNoInteractions(checkpointer);
+	}
+
+	private KclShardRecordProcessor singleRecordProcessor(KclCheckpointMode checkpointMode, MessageListener listener,
 			ErrorHandler errorHandler) {
 		KclShardRecordProcessor processor = new KclShardRecordProcessor(new KinesisMessagingMessageConverter(),
-				ListenerMode.SINGLE_RECORD, checkpointMode, 1000L, Duration.ofSeconds(60), listener, null, errorHandler,
-				"my-stream");
+				KclListenerMode.SINGLE_RECORD, checkpointMode, 1000L, Duration.ofSeconds(60), listener, null,
+				errorHandler, "my-stream");
 		processor.initialize(InitializationInput.builder().shardId("shard-1").build());
 		return processor;
 	}

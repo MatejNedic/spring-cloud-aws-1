@@ -15,24 +15,29 @@
  */
 package io.awspring.cloud.kinesis.config;
 
-import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointMode;
 import io.awspring.cloud.kinesis.listener.retrieval.KinesisConsumerResolver;
 import io.awspring.cloud.kinesis.listener.retrieval.RetrievalMode;
 import java.lang.reflect.Method;
+import java.util.Collection;
+import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.springframework.messaging.handler.annotation.support.MessageHandlerMethodFactory;
 import org.springframework.util.Assert;
 import software.amazon.kinesis.common.InitialPositionInStream;
 
 /**
+ * {@link KclHandlerMethodEndpoint} implementation describing a single
+ * {@link io.awspring.cloud.kinesis.annotation.KclListener} annotated method.
+ *
  * @author Matej Nedic
  * @since 4.2.0
  */
-public class KclListenerEndpoint {
+public class KclListenerEndpoint implements KclHandlerMethodEndpoint {
 
 	private final String id;
 
-	private final String streamName;
+	private final Collection<String> streamNames;
 
 	private final String applicationName;
 
@@ -44,7 +49,7 @@ public class KclListenerEndpoint {
 	private final Method method;
 
 	@Nullable
-	private final CheckpointMode checkpointMode;
+	private final KclCheckpointMode checkpointMode;
 
 	@Nullable
 	private final RetrievalMode retrievalMode;
@@ -72,12 +77,12 @@ public class KclListenerEndpoint {
 
 	private KclListenerEndpoint(Builder builder) {
 		Assert.hasText(builder.id, "id must not be empty");
-		Assert.hasText(builder.streamName, "streamName must not be empty");
+		Assert.notEmpty(builder.streamNames, "streamNames must not be empty");
 		Assert.hasText(builder.applicationName, "applicationName must not be empty");
 		Assert.notNull(builder.bean, "bean must not be null");
 		Assert.notNull(builder.method, "method must not be null");
 		this.id = builder.id;
-		this.streamName = builder.streamName;
+		this.streamNames = List.copyOf(builder.streamNames);
 		this.applicationName = builder.applicationName;
 		this.factoryBeanName = builder.factoryBeanName;
 		this.bean = builder.bean;
@@ -96,76 +101,92 @@ public class KclListenerEndpoint {
 		return new Builder();
 	}
 
+	@Override
 	public String getId() {
 		return this.id;
 	}
 
-	public String getStreamName() {
-		return this.streamName;
+	@Override
+	public Collection<String> getStreamNames() {
+		return this.streamNames;
 	}
 
+	@Override
 	public String getApplicationName() {
 		return this.applicationName;
 	}
 
 	@Nullable
+	@Override
 	public String getFactoryBeanName() {
 		return this.factoryBeanName;
 	}
 
+	@Override
 	public Object getBean() {
 		return this.bean;
 	}
 
+	@Override
 	public Method getMethod() {
 		return this.method;
 	}
 
+	@Override
 	public void setHandlerMethodFactory(MessageHandlerMethodFactory handlerMethodFactory) {
 		this.handlerMethodFactory = handlerMethodFactory;
 	}
 
+	@Override
 	public MessageHandlerMethodFactory getHandlerMethodFactory() {
 		Assert.notNull(this.handlerMethodFactory, "handlerMethodFactory has not been set");
 		return this.handlerMethodFactory;
 	}
 
 	@Nullable
-	public CheckpointMode getCheckpointMode() {
+	@Override
+	public KclCheckpointMode getCheckpointMode() {
 		return this.checkpointMode;
 	}
 
 	@Nullable
+	@Override
 	public RetrievalMode getRetrievalMode() {
 		return this.retrievalMode;
 	}
 
 	@Nullable
+	@Override
 	public InitialPositionInStream getInitialPositionInStream() {
 		return this.initialPositionInStream;
 	}
 
 	@Nullable
+	@Override
 	public String getConsumerArn() {
 		return this.consumerArn;
 	}
 
 	@Nullable
+	@Override
 	public String getConsumerName() {
 		return this.consumerName;
 	}
 
 	@Nullable
+	@Override
 	public String getLeaseTableName() {
 		return this.leaseTableName;
 	}
 
 	@Nullable
+	@Override
 	public String getMetricsNamespace() {
 		return this.metricsNamespace;
 	}
 
 	@Nullable
+	@Override
 	public String getReplyStream() {
 		return this.replyStream;
 	}
@@ -176,7 +197,7 @@ public class KclListenerEndpoint {
 		private String id;
 
 		@Nullable
-		private String streamName;
+		private Collection<String> streamNames;
 
 		@Nullable
 		private String applicationName;
@@ -191,7 +212,7 @@ public class KclListenerEndpoint {
 		private Method method;
 
 		@Nullable
-		private CheckpointMode checkpointMode;
+		private KclCheckpointMode checkpointMode;
 
 		@Nullable
 		private RetrievalMode retrievalMode;
@@ -222,9 +243,13 @@ public class KclListenerEndpoint {
 			return this;
 		}
 
-		public Builder streamName(String streamName) {
-			this.streamName = streamName;
+		public Builder streamNames(Collection<String> streamNames) {
+			this.streamNames = streamNames;
 			return this;
+		}
+
+		public Builder streamName(String streamName) {
+			return streamNames(List.of(streamName));
 		}
 
 		public Builder applicationName(String applicationName) {
@@ -247,7 +272,7 @@ public class KclListenerEndpoint {
 			return this;
 		}
 
-		public Builder checkpointMode(@Nullable CheckpointMode checkpointMode) {
+		public Builder checkpointMode(@Nullable KclCheckpointMode checkpointMode) {
 			this.checkpointMode = checkpointMode;
 			return this;
 		}

@@ -19,9 +19,9 @@ package io.awspring.cloud.kinesis.support.converter;
  * @author Matej Nedic
  * @since 4.2.0
  */
-public final class KinesisHeaders {
+public final class KinesisMessageHeaders {
 
-	private KinesisHeaders() {
+	private KinesisMessageHeaders() {
 	}
 
 	public static final String PREFIX = "Kinesis_";

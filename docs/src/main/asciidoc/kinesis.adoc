@@ -27,10 +27,14 @@ public void handle(Order order) { }                                    // conver
 public void handle(Order order, @Header("Kinesis_partitionKey") String key) { }
 public void handle(Message<Order> message) { }                         // full envelope
 public void handle(List<Message<?>> batch) { }                         // batch mode (a Collection parameter)
-public void handle(Order order, Checkpointer checkpointer) { }         // manual checkpointing
+public void handle(Order order, KclCheckpointer checkpointer) { }         // manual checkpointing
 ----
 
-`Checkpointer` is a Spring Messaging abstraction; the raw KCL checkpointer is never exposed to user code.
+`KclCheckpointer` is a Spring Messaging abstraction; the raw KCL checkpointer is never exposed to user code.
+
+NOTE: The container API types carry a `Kcl` prefix (`KclCheckpointer`, `KclCheckpointMode`, `KclListenerMode`) and message headers live in `KinesisMessageHeaders`, so they never clash with the similarly-named types of the <<Spring Integration support>> channel adapters (`Checkpointer`, `CheckpointMode`, `ListenerMode`, `KinesisHeaders`).
+
+`@KclListener` can only be placed on methods: a container is always bound to a single listener method, so there is no class-level form.
 
 The `@KclListener` annotation supports the following attributes (all string-valued so that they can use property placeholders and SpEL):
 
@@ -38,7 +42,7 @@ The `@KclListener` annotation supports the following attributes (all string-valu
 |===
 | Attribute | Description
 
-| `streamName` | Required. The Kinesis stream to consume from.
+| `streamNames` | Required. The Kinesis stream(s) to consume from. Several streams are consumed by *one* container under a single KCL application, so they share one lease table and one set of workers instead of one application per stream. Requires `POLLING` retrieval.
 | `applicationName` | KCL application name; drives the DynamoDB table names and the consumer group. Defaults to the resolved `id` when left empty.
 | `id` | Container id / registry key. Defaults to a generated `io.awspring.cloud.kinesis.KclListenerEndpointContainer#<n>` id.
 | `factory` | Bean name of the `KclMessageListenerContainerFactory` to use. Defaults to the single auto-configured factory.
@@ -61,9 +65,9 @@ The checkpoint mode controls when processed records are checkpointed (the Kinesi
 - `BATCH` (default): checkpoint once after a batch has been processed successfully.
 - `RECORD`: checkpoint after each record.
 - `PERIODIC`: checkpoint at most every configured number of records or time interval.
-- `MANUAL`: never checkpoint automatically; the listener checkpoints through an injected `Checkpointer`.
+- `MANUAL`: never checkpoint automatically; the listener checkpoints through an injected `KclCheckpointer`.
 
-NOTE: In the automatic modes (`BATCH`, `RECORD`, `PERIODIC`) the container checkpoints on `shutdownRequested` for you. In `MANUAL` mode the container deliberately does *not* checkpoint on `shutdownRequested`, because auto-checkpointing there would commit records the listener never acknowledged through the `Checkpointer`. This is an intentional trade-off: `MANUAL` mode forgoes the KCL 3.x _graceful lease handoff_ optimisation (which checkpoints on shutdown to minimise reprocessing when a lease moves to another worker), so a handoff reprocesses from the listener's last manual checkpoint. Checkpointing is never performed on `leaseLost` (not allowed by KCL) and is always performed on `shardEnded` (mandatory to complete a shard so its child-shard leases can be created).
+NOTE: In the automatic modes (`BATCH`, `RECORD`, `PERIODIC`) the container checkpoints on `shutdownRequested` for you. In `MANUAL` mode the container deliberately does *not* checkpoint on `shutdownRequested`, because auto-checkpointing there would commit records the listener never acknowledged through the `KclCheckpointer`. This is an intentional trade-off: `MANUAL` mode forgoes the KCL 3.x _graceful lease handoff_ optimisation (which checkpoints on shutdown to minimise reprocessing when a lease moves to another worker), so a handoff reprocesses from the listener's last manual checkpoint. Checkpointing is never performed on `leaseLost` (not allowed by KCL) and is always performed on `shardEnded` (mandatory to complete a shard so its child-shard leases can be created).
 
 The retrieval mode selects how the scheduler reads records: `POLLING` (default) or `ENHANCED_FAN_OUT`.
 The container defaults to `POLLING`, which differs from the raw KCL 3.x default of enhanced fan-out. This is a deliberate cost-oriented default: `POLLING` uses the shared 2 MB/sec per-shard throughput and avoids the per-consumer-shard-hour cost of enhanced fan-out. Enhanced fan-out is best reserved for latency-sensitive consumers (~70 ms propagation) or when more than two consumers read the same stream.
@@ -82,11 +86,31 @@ public void handleByArn(Order order) { }
 [source,java]
 ----
 @KclListener(streamName = "orders", checkpointMode = "MANUAL", retrievalMode = "ENHANCED_FAN_OUT")
-public void handle(Order order, Checkpointer checkpointer) {
+public void handle(Order order, KclCheckpointer checkpointer) {
     // ...
     checkpointer.checkpoint();
 }
 ----
+
+==== Consuming several streams with one listener
+
+A listener can declare more than one stream, in which case a single container consumes all of them as one KCL application:
+
+[source,java]
+----
+@KclListener(streamNames = { "orders", "shipments" }, applicationName = "fulfilment")
+public void handle(Order order, @Header(KinesisMessageHeaders.STREAM_NAME) String stream) { }
+----
+
+This runs KCL in multi-stream mode; for what that means operationally, see https://docs.aws.amazon.com/streams/latest/dev/kcl-multi-stream.html[Multi-stream processing with KCL]. Every record carries `KinesisMessageHeaders.STREAM_NAME`, so the handler can tell the streams apart.
+
+Most listeners consume a single stream, and that remains the recommended shape. Group streams into one listener only when they are handled identically, and note what they then share:
+
+* One method signature, so all streams must deserialize into the declared payload type. Use `Message<?>`, `String` or `byte[]` when the payloads differ.
+* One `applicationName`, lease table, checkpoint mode, initial position, metrics namespace and scheduler.
+* `POLLING` retrieval only: `ENHANCED_FAN_OUT` with several streams fails at startup, because a consumer is registered against one stream.
+
+WARNING: Adding a second stream to a listener that already ran with a single stream changes KCL's lease key format, which is incompatible with the existing lease table. Use a new `applicationName` (or `leaseTableName`) when making that switch.
 
 ==== Error handling
 
@@ -103,13 +127,15 @@ public interface ErrorHandler {
 `handle` returns `void`, and its outcome is load-bearing because it decides whether the record is checkpointed:
 
 - If `handle` *returns normally*, the container treats the record(s) as processed: processing continues and the configured checkpoint mode advances the position past the failed record.
-- If `handle` *throws*, the exception propagates out of `processRecords` back to KCL, so the position is *not* checkpointed and KCL redelivers the same batch.
+- If `handle` *throws*, the exception propagates out of `processRecords` and the container does *not* checkpoint that batch.
 
-The default `ErrorHandler` is `LoggingErrorHandler`, which logs the failure and *rethrows* it (a `RuntimeException` is rethrown as-is; a checked exception is wrapped in `ListenerExecutionFailedException`). Rethrowing is the safe, no-data-loss default: nothing is checkpointed past a failure, giving at-least-once delivery.
+The default `ErrorHandler` is `LoggingErrorHandler`, which logs the failure and *rethrows* it (a `RuntimeException` is rethrown as-is; a checked exception is wrapped in `ListenerExecutionFailedException`).
 
 Records that fail to convert into a `Message` are routed to the same `ErrorHandler`, carrying the raw KCL record as the payload.
 
-WARNING: There is no DLQ or re-drive support. Because the default handler rethrows, a permanently-failing (poison) record is retried indefinitely and blocks its shard, since KCL keeps redelivering the same batch and the shard never checkpoints past it. To skip poison records, supply a custom `ErrorHandler` that *returns normally* instead of throwing — accepting that the record is skipped (and, if you need it elsewhere, dead-lettered by your own code inside `handle`). Make listeners idempotent, as the same record may be delivered more than once.
+IMPORTANT: Throwing out of `processRecords` does *not* make KCL retry the batch. The KCL catches the exception, logs `Application processRecords() threw an exception when processing shard` followed by `Skipping over the following data records`, and calls `processRecords` with the *next* batch without restarting the record processor — see https://docs.aws.amazon.com/streams/latest/dev/troubleshooting-consumers.html[Troubleshooting Kinesis Data Streams consumers]. The failed records are therefore skipped in-process, and once a later batch is checkpointed the position moves past them for good. They are only reprocessed if the worker dies or the lease moves before that next checkpoint, because the failed batch itself was never committed.
+
+WARNING: There is no DLQ or re-drive support, and no in-place retry. If a record must not be lost, handle it inside `ErrorHandler.handle` — for example by writing it to a dead-letter stream or store there — rather than relying on redelivery. Make listeners idempotent, since a record can still be delivered more than once after a lease handoff or worker restart.
 
 [source,java]
 ----
@@ -222,6 +248,8 @@ KCL 3.x stores its coordination state in https://docs.aws.amazon.com/streams/lat
 - the *lease* table (named after `applicationName`), holding shard leases and checkpoints;
 - `<applicationName>-WorkerMetricStats`, holding per-worker metrics used for load balancing;
 - `<applicationName>-CoordinatorState`, holding coordinator state.
+
+TIP: KCL 3.5 can consolidate all three tables into the lease table (_single table format_). It stays off by default: enable it with `CoordinatorConfig#migrateAllEntitiesToLeaseTable(true)` through the coordinator config customizer, following the two-phase deployment AWS describes in https://docs.aws.amazon.com/streams/latest/dev/kcl-single-table-format.html[Single table format for KCL].
 
 The `@KclListener(leaseTableName = "...")` attribute renames *only* the lease table. The `-WorkerMetricStats` and `-CoordinatorState` table names stay derived from `applicationName` and cannot be overridden through the annotation (use the coordinator/lease KCL config customizers for finer control). All three are created with the configured billing mode, which defaults to on-demand (`PAY_PER_REQUEST`) as https://docs.aws.amazon.com/streams/latest/dev/kcl-dynamoDB.html[AWS recommends].
 

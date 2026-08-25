@@ -40,10 +40,10 @@ class KinesisMessagingMessageConverterTests {
 				"my-stream");
 
 		assertThat(message.getPayload()).isEqualTo("hello".getBytes(StandardCharsets.UTF_8));
-		assertThat(message.getHeaders().get(KinesisHeaders.PARTITION_KEY)).isEqualTo("pk-1");
-		assertThat(message.getHeaders().get(KinesisHeaders.SEQUENCE_NUMBER)).isEqualTo("seq-1");
-		assertThat(message.getHeaders().get(KinesisHeaders.SHARD_ID)).isEqualTo("shard-1");
-		assertThat(message.getHeaders().get(KinesisHeaders.STREAM_NAME)).isEqualTo("my-stream");
+		assertThat(message.getHeaders().get(KinesisMessageHeaders.PARTITION_KEY)).isEqualTo("pk-1");
+		assertThat(message.getHeaders().get(KinesisMessageHeaders.SEQUENCE_NUMBER)).isEqualTo("seq-1");
+		assertThat(message.getHeaders().get(KinesisMessageHeaders.SHARD_ID)).isEqualTo("shard-1");
+		assertThat(message.getHeaders().get(KinesisMessageHeaders.STREAM_NAME)).isEqualTo("my-stream");
 	}
 
 	@Test

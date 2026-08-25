@@ -16,12 +16,12 @@
 package io.awspring.cloud.kinesis.listener;
 
 import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointException;
-import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode;
-import io.awspring.cloud.kinesis.listener.checkpoint.Checkpointer;
+import io.awspring.cloud.kinesis.listener.checkpoint.DefaultKclCheckpointer;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointMode;
 import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointer;
 import io.awspring.cloud.kinesis.listener.checkpoint.LeaseLostCheckpointException;
 import io.awspring.cloud.kinesis.listener.errorhandler.ErrorHandler;
-import io.awspring.cloud.kinesis.support.converter.KinesisHeaders;
+import io.awspring.cloud.kinesis.support.converter.KinesisMessageHeaders;
 import io.awspring.cloud.kinesis.support.converter.KinesisMessagingMessageConverter;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -49,9 +49,9 @@ class KclShardRecordProcessor implements ShardRecordProcessor {
 
 	private final KinesisMessagingMessageConverter converter;
 
-	private final ListenerMode listenerMode;
+	private final KclListenerMode listenerMode;
 
-	private final CheckpointMode checkpointMode;
+	private final KclCheckpointMode checkpointMode;
 
 	private final long checkpointRecordCount;
 
@@ -74,8 +74,8 @@ class KclShardRecordProcessor implements ShardRecordProcessor {
 
 	private long lastCheckpointEpochMillis;
 
-	KclShardRecordProcessor(KinesisMessagingMessageConverter converter, ListenerMode listenerMode,
-			CheckpointMode checkpointMode, long checkpointRecordCount, Duration checkpointInterval,
+	KclShardRecordProcessor(KinesisMessagingMessageConverter converter, KclListenerMode listenerMode,
+			KclCheckpointMode checkpointMode, long checkpointRecordCount, Duration checkpointInterval,
 			@Nullable MessageListener messageListener, @Nullable BatchMessageListener batchMessageListener,
 			ErrorHandler errorHandler, String streamName) {
 		this.converter = converter;
@@ -101,9 +101,10 @@ class KclShardRecordProcessor implements ShardRecordProcessor {
 	public void processRecords(ProcessRecordsInput processRecordsInput) {
 		List<KinesisClientRecord> records = processRecordsInput.records();
 		if (records.isEmpty()) {
+			checkpointIdlePeriodicIfDue(processRecordsInput);
 			return;
 		}
-		Checkpointer checkpointer = new KclCheckpointer(processRecordsInput.checkpointer());
+		KclCheckpointer checkpointer = new DefaultKclCheckpointer(processRecordsInput.checkpointer());
 		List<Message<?>> messages = new ArrayList<>(records.size());
 		for (KinesisClientRecord record : records) {
 			try {
@@ -115,7 +116,7 @@ class KclShardRecordProcessor implements ShardRecordProcessor {
 						ex);
 			}
 		}
-		if (this.listenerMode == ListenerMode.BATCH) {
+		if (this.listenerMode == KclListenerMode.BATCH) {
 			processBatch(messages, checkpointer);
 		}
 		else {
@@ -123,7 +124,7 @@ class KclShardRecordProcessor implements ShardRecordProcessor {
 		}
 	}
 
-	private void processBatch(List<Message<?>> messages, Checkpointer checkpointer) {
+	private void processBatch(List<Message<?>> messages, KclCheckpointer checkpointer) {
 		try {
 			requireBatchListener().onMessage(messages);
 		}
@@ -143,7 +144,7 @@ class KclShardRecordProcessor implements ShardRecordProcessor {
 		}
 	}
 
-	private void processSingle(List<Message<?>> messages, Checkpointer checkpointer) {
+	private void processSingle(List<Message<?>> messages, KclCheckpointer checkpointer) {
 		for (Message<?> message : messages) {
 			try {
 				requireMessageListener().onMessage(message);
@@ -151,17 +152,17 @@ class KclShardRecordProcessor implements ShardRecordProcessor {
 			catch (Exception ex) {
 				this.errorHandler.handle(message, ex);
 			}
-			if (this.checkpointMode == CheckpointMode.RECORD) {
+			if (this.checkpointMode == KclCheckpointMode.RECORD) {
 				autoCheckpoint(checkpointer, message);
 			}
-			else if (this.checkpointMode == CheckpointMode.PERIODIC) {
+			else if (this.checkpointMode == KclCheckpointMode.PERIODIC) {
 				this.recordsSinceCheckpoint++;
 				if (periodicCheckpointDue()) {
 					autoCheckpoint(checkpointer, message);
 				}
 			}
 		}
-		if (this.checkpointMode == CheckpointMode.BATCH) {
+		if (this.checkpointMode == KclCheckpointMode.BATCH) {
 			autoCheckpoint(checkpointer, null);
 		}
 	}
@@ -174,22 +175,29 @@ class KclShardRecordProcessor implements ShardRecordProcessor {
 	@Override
 	public void shardEnded(ShardEndedInput shardEndedInput) {
 		logger.debug("Shard {} ended, checkpointing", this.shardId);
-		mandatoryCheckpoint(new KclCheckpointer(shardEndedInput.checkpointer()));
+		mandatoryCheckpoint(new DefaultKclCheckpointer(shardEndedInput.checkpointer()));
 	}
 
 	@Override
 	public void shutdownRequested(ShutdownRequestedInput shutdownRequestedInput) {
 		logger.debug("Shutdown requested for shard {}", this.shardId);
-		if (this.checkpointMode != CheckpointMode.MANUAL) {
-			autoCheckpoint(new KclCheckpointer(shutdownRequestedInput.checkpointer()), null);
+		if (this.checkpointMode != KclCheckpointMode.MANUAL) {
+			autoCheckpoint(new DefaultKclCheckpointer(shutdownRequestedInput.checkpointer()), null);
 		}
 	}
 
-	private Message<?> withCheckpointer(Message<?> message, Checkpointer checkpointer) {
-		return MessageBuilder.fromMessage(message).setHeader(KinesisHeaders.CHECKPOINTER, checkpointer).build();
+	private void checkpointIdlePeriodicIfDue(ProcessRecordsInput processRecordsInput) {
+		if (this.checkpointMode == KclCheckpointMode.PERIODIC && this.recordsSinceCheckpoint > 0
+				&& periodicCheckpointDue()) {
+			autoCheckpoint(new DefaultKclCheckpointer(processRecordsInput.checkpointer()), null);
+		}
 	}
 
-	private void mandatoryCheckpoint(Checkpointer checkpointer) {
+	private Message<?> withCheckpointer(Message<?> message, KclCheckpointer checkpointer) {
+		return MessageBuilder.fromMessage(message).setHeader(KinesisMessageHeaders.CHECKPOINTER, checkpointer).build();
+	}
+
+	private void mandatoryCheckpoint(KclCheckpointer checkpointer) {
 		try {
 			checkpointer.checkpoint();
 			resetPeriodicState();
@@ -204,7 +212,7 @@ class KclShardRecordProcessor implements ShardRecordProcessor {
 		}
 	}
 
-	private void autoCheckpoint(Checkpointer checkpointer, @Nullable Message<?> message) {
+	private void autoCheckpoint(KclCheckpointer checkpointer, @Nullable Message<?> message) {
 		try {
 			if (message != null) {
 				checkpointer.checkpoint(message);

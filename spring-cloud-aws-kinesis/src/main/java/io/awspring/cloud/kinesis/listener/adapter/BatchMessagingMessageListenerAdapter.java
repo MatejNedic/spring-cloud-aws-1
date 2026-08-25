@@ -16,9 +16,9 @@
 package io.awspring.cloud.kinesis.listener.adapter;
 
 import io.awspring.cloud.kinesis.listener.BatchMessageListener;
-import io.awspring.cloud.kinesis.listener.checkpoint.Checkpointer;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointer;
 import io.awspring.cloud.kinesis.operations.KinesisOperations;
-import io.awspring.cloud.kinesis.support.converter.KinesisHeaders;
+import io.awspring.cloud.kinesis.support.converter.KinesisMessageHeaders;
 import java.util.Collection;
 import org.jspecify.annotations.Nullable;
 import org.springframework.messaging.Message;
@@ -41,8 +41,8 @@ public class BatchMessagingMessageListenerAdapter extends AbstractMethodInvoking
 	public void onMessage(Collection<Message<?>> messages) {
 		MessageBuilder<Collection<Message<?>>> builder = MessageBuilder.withPayload(messages);
 		messages.stream().findFirst()
-				.map(message -> message.getHeaders().get(KinesisHeaders.CHECKPOINTER, Checkpointer.class))
-				.ifPresent(checkpointer -> builder.setHeader(KinesisHeaders.CHECKPOINTER, checkpointer));
+				.map(message -> message.getHeaders().get(KinesisMessageHeaders.CHECKPOINTER, KclCheckpointer.class))
+				.ifPresent(checkpointer -> builder.setHeader(KinesisMessageHeaders.CHECKPOINTER, checkpointer));
 		invoke(builder.build());
 	}
 

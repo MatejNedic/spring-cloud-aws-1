@@ -18,12 +18,19 @@ package io.awspring.cloud.kinesis.config;
 import io.awspring.cloud.kinesis.listener.MessageListenerContainer;
 
 /**
+ * Creates {@link MessageListenerContainer} instances for {@link KclEndpoint} definitions.
+ *
  * @author Matej Nedic
  * @since 4.2.0
  */
 @FunctionalInterface
 public interface MessageListenerContainerFactory {
 
-	MessageListenerContainer createContainer(KclListenerEndpoint endpoint);
+	/**
+	 * Creates a container for the given endpoint.
+	 * @param endpoint the endpoint to create a container for.
+	 * @return the container, not started.
+	 */
+	MessageListenerContainer createContainer(KclEndpoint endpoint);
 
 }

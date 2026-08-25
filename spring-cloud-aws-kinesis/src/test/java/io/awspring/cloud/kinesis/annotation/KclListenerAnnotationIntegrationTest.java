@@ -21,7 +21,7 @@ import io.awspring.cloud.kinesis.LocalstackContainerTest;
 import io.awspring.cloud.kinesis.config.KclBootstrapConfiguration;
 import io.awspring.cloud.kinesis.config.KclMessageListenerContainerFactory;
 import io.awspring.cloud.kinesis.config.MessageListenerContainerFactory;
-import io.awspring.cloud.kinesis.listener.checkpoint.Checkpointer;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointer;
 import io.awspring.cloud.kinesis.operations.KinesisTemplate;
 import java.time.Duration;
 import java.util.List;
@@ -118,7 +118,7 @@ class KclListenerAnnotationIntegrationTest implements LocalstackContainerTest {
 
 	static class SingleRecordListener {
 
-		@KclListener(id = "single-listener", streamName = SINGLE_STREAM, applicationName = "kcl-annotation-single-application")
+		@KclListener(id = "single-listener", streamNames = SINGLE_STREAM, applicationName = "kcl-annotation-single-application")
 		void handle(String payload) {
 			RECEIVED.add(payload);
 		}
@@ -127,8 +127,8 @@ class KclListenerAnnotationIntegrationTest implements LocalstackContainerTest {
 
 	static class BatchListener {
 
-		@KclListener(id = "batch-listener", streamName = BATCH_STREAM, applicationName = "kcl-annotation-batch-application", checkpointMode = "MANUAL")
-		void handle(List<String> payloads, Checkpointer checkpointer) {
+		@KclListener(id = "batch-listener", streamNames = BATCH_STREAM, applicationName = "kcl-annotation-batch-application", checkpointMode = "MANUAL")
+		void handle(List<String> payloads, KclCheckpointer checkpointer) {
 			RECEIVED_BATCH.addAll(payloads);
 			checkpointer.checkpoint();
 			BATCH_CHECKPOINTED.set(true);

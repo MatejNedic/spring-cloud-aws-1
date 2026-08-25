@@ -15,16 +15,18 @@
  */
 package io.awspring.cloud.kinesis.listener.checkpoint;
 
-import org.springframework.messaging.Message;
-
 /**
  * @author Matej Nedic
  * @since 4.2.0
  */
-public interface Checkpointer {
+public enum KclCheckpointMode {
 
-	void checkpoint();
+	BATCH,
 
-	void checkpoint(Message<?> message);
+	RECORD,
+
+	PERIODIC,
+
+	MANUAL
 
 }

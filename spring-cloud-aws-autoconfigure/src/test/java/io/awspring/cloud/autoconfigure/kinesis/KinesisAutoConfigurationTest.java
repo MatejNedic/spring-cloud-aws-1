@@ -21,7 +21,7 @@ import io.awspring.cloud.autoconfigure.core.AwsAutoConfiguration;
 import io.awspring.cloud.autoconfigure.core.CredentialsProviderAutoConfiguration;
 import io.awspring.cloud.autoconfigure.core.RegionProviderAutoConfiguration;
 import io.awspring.cloud.kinesis.config.KclMessageListenerContainerFactory;
-import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointMode;
 import io.awspring.cloud.kinesis.listener.retrieval.RetrievalMode;
 import io.awspring.cloud.kinesis.operations.KinesisTemplate;
 import org.junit.jupiter.api.Test;
@@ -68,7 +68,7 @@ class KinesisAutoConfigurationTest {
 					KinesisProperties properties = context.getBean(KinesisProperties.class);
 					assertThat(properties.getListener().getMaxRecords()).isEqualTo(250);
 					assertThat(properties.getListener().getRetrievalMode()).isEqualTo(RetrievalMode.ENHANCED_FAN_OUT);
-					assertThat(properties.getListener().getCheckpointMode()).isEqualTo(CheckpointMode.MANUAL);
+					assertThat(properties.getListener().getCheckpointMode()).isEqualTo(KclCheckpointMode.MANUAL);
 				});
 	}
 

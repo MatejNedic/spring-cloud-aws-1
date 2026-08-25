@@ -19,12 +19,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.awspring.cloud.kinesis.config.KclBootstrapConfiguration;
-import io.awspring.cloud.kinesis.config.KclListenerEndpoint;
+import io.awspring.cloud.kinesis.config.KclEndpoint;
+import io.awspring.cloud.kinesis.config.KclHandlerMethodEndpoint;
 import io.awspring.cloud.kinesis.config.MessageListenerContainerFactory;
 import io.awspring.cloud.kinesis.listener.MessageListener;
 import io.awspring.cloud.kinesis.listener.MessageListenerContainer;
 import io.awspring.cloud.kinesis.listener.MessageListenerContainerRegistry;
-import io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode;
+import io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointMode;
 import io.awspring.cloud.kinesis.listener.retrieval.RetrievalMode;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,11 +53,12 @@ class KclListenerAnnotationBeanPostProcessorTests {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(TestConfig.class)) {
 			CapturingContainerFactory factory = context.getBean(CapturingContainerFactory.class);
 			assertThat(factory.endpoints).hasSize(1);
-			KclListenerEndpoint endpoint = factory.endpoints.get(0);
+			KclEndpoint endpoint = factory.endpoints.get(0);
 			assertThat(endpoint.getId()).isEqualTo("order-listener");
-			assertThat(endpoint.getStreamName()).isEqualTo("orders");
+			assertThat(endpoint.getStreamNames()).containsExactly("orders");
 			assertThat(endpoint.getApplicationName()).isEqualTo("order-processor");
-			assertThat(endpoint.getHandlerMethodFactory()).isNotNull();
+			assertThat(endpoint).isInstanceOf(KclHandlerMethodEndpoint.class);
+			assertThat(((KclHandlerMethodEndpoint) endpoint).getHandlerMethodFactory()).isNotNull();
 
 			MessageListenerContainerRegistry registry = context.getBean(MessageListenerContainerRegistry.class);
 			assertThat(registry.getContainerById("order-listener")).isNotNull();
@@ -71,7 +73,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 				DefaultAppNameConfig.class)) {
 			CapturingContainerFactory factory = context.getBean(CapturingContainerFactory.class);
 			assertThat(factory.endpoints).hasSize(1);
-			KclListenerEndpoint endpoint = factory.endpoints.get(0);
+			KclEndpoint endpoint = factory.endpoints.get(0);
 			assertThat(endpoint.getApplicationName()).isEqualTo(endpoint.getId());
 		}
 	}
@@ -80,7 +82,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	@DisplayName("generates a default container id when none is provided")
 	void generatesDefaultIdWhenNotProvided() {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(NoIdConfig.class)) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
 			assertThat(endpoint.getId()).startsWith("io.awspring.cloud.kinesis.KclListenerEndpointContainer#");
 			assertThat(endpoint.getApplicationName()).isEqualTo(endpoint.getId());
 		}
@@ -90,8 +92,8 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	@DisplayName("resolves checkpoint and retrieval modes from the annotation")
 	void resolvesCheckpointAndRetrievalMode() {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ModesConfig.class)) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
-			assertThat(endpoint.getCheckpointMode()).isEqualTo(CheckpointMode.RECORD);
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			assertThat(endpoint.getCheckpointMode()).isEqualTo(KclCheckpointMode.RECORD);
 			assertThat(endpoint.getRetrievalMode()).isEqualTo(RetrievalMode.ENHANCED_FAN_OUT);
 		}
 	}
@@ -100,7 +102,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	@DisplayName("defaults the initial position in stream to TRIM_HORIZON")
 	void initialPositionDefaultsToTrimHorizon() {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(TestConfig.class)) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
 			assertThat(endpoint.getInitialPositionInStream()).isEqualTo(InitialPositionInStream.TRIM_HORIZON);
 		}
 	}
@@ -110,7 +112,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	void resolvesLatestInitialPosition() {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
 				LatestPositionConfig.class)) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
 			assertThat(endpoint.getInitialPositionInStream()).isEqualTo(InitialPositionInStream.LATEST);
 		}
 	}
@@ -120,7 +122,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	void resolvesInitialPositionFromPlaceholder() {
 		try (AnnotationConfigApplicationContext context = contextWith(PlaceholderPositionConfig.class,
 				"app.initial-position", "LATEST")) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
 			assertThat(endpoint.getInitialPositionInStream()).isEqualTo(InitialPositionInStream.LATEST);
 		}
 	}
@@ -130,7 +132,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	void emptyInitialPositionFallsBackToFactory() {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
 				EmptyPositionConfig.class)) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
 			assertThat(endpoint.getInitialPositionInStream()).isNull();
 		}
 	}
@@ -148,7 +150,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	void resolvesPerStreamIdentities() {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
 				PerStreamIdentityConfig.class)) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
 			assertThat(endpoint.getConsumerArn()).isEqualTo("arn:aws:kinesis:eu-west-1:123456789012:stream/orders");
 			assertThat(endpoint.getConsumerName()).isNull();
 			assertThat(endpoint.getLeaseTableName()).isEqualTo("orders-leases");
@@ -161,7 +163,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	void resolvesConsumerNameAsName() {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
 				ConsumerNameConfig.class)) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
 			assertThat(endpoint.getConsumerName()).isEqualTo("orders-consumer");
 			assertThat(endpoint.getConsumerArn()).isNull();
 		}
@@ -171,7 +173,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	@DisplayName("leaves the per-stream identities null when not specified")
 	void leavesPerStreamIdentitiesNullWhenNotSpecified() {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(TestConfig.class)) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
 			assertThat(endpoint.getConsumerArn()).isNull();
 			assertThat(endpoint.getConsumerName()).isNull();
 			assertThat(endpoint.getLeaseTableName()).isNull();
@@ -183,10 +185,22 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	@DisplayName("leaves checkpoint and retrieval modes null when not specified")
 	void leavesModesNullWhenNotSpecified() {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(TestConfig.class)) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
 			assertThat(endpoint.getCheckpointMode()).isNull();
 			assertThat(endpoint.getRetrievalMode()).isNull();
 			assertThat(endpoint.getReplyStream()).isNull();
+		}
+	}
+
+	@Test
+	@DisplayName("a listener declaring several streams yields one endpoint consuming all of them")
+	void resolvesMultipleStreams() {
+		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
+				MultiStreamConfig.class)) {
+			CapturingContainerFactory factory = context.getBean(CapturingContainerFactory.class);
+			assertThat(factory.endpoints).hasSize(1);
+			assertThat(factory.endpoints.get(0).getStreamNames()).containsExactly("orders", "shipments");
+			assertThat(context.getBean(MessageListenerContainerRegistry.class).getListenerContainers()).hasSize(1);
 		}
 	}
 
@@ -207,7 +221,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	@DisplayName("resolves the @SendTo destination into the endpoint reply stream")
 	void resolvesSendToReplyStream() {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(SendToConfig.class)) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
 			assertThat(endpoint.getReplyStream()).isEqualTo("out-stream");
 		}
 	}
@@ -217,8 +231,8 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	void resolvesPlaceholders() {
 		try (AnnotationConfigApplicationContext context = contextWith(PlaceholderConfig.class, "app.stream",
 				"resolved-stream")) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
-			assertThat(endpoint.getStreamName()).isEqualTo("resolved-stream");
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			assertThat(endpoint.getStreamNames()).containsExactly("resolved-stream");
 		}
 	}
 
@@ -227,8 +241,8 @@ class KclListenerAnnotationBeanPostProcessorTests {
 	void resolvesStreamNameViaValueAlias() {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
 				ValueAliasConfig.class)) {
-			KclListenerEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
-			assertThat(endpoint.getStreamName()).isEqualTo("aliased-stream");
+			KclEndpoint endpoint = context.getBean(CapturingContainerFactory.class).endpoints.get(0);
+			assertThat(endpoint.getStreamNames()).containsExactly("aliased-stream");
 		}
 	}
 
@@ -238,8 +252,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 		try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(MultiConfig.class)) {
 			CapturingContainerFactory factory = context.getBean(CapturingContainerFactory.class);
 			assertThat(factory.endpoints).hasSize(2);
-			assertThat(factory.endpoints).extracting(KclListenerEndpoint::getId).containsExactlyInAnyOrder("first",
-					"second");
+			assertThat(factory.endpoints).extracting(KclEndpoint::getId).containsExactlyInAnyOrder("first", "second");
 			MessageListenerContainerRegistry registry = context.getBean(MessageListenerContainerRegistry.class);
 			assertThat(registry.getListenerContainers()).hasSize(2);
 		}
@@ -494,7 +507,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class LatestPositionListener {
 
-		@KclListener(id = "latest-position", streamName = "orders", initialPositionInStream = "LATEST")
+		@KclListener(id = "latest-position", streamNames = "orders", initialPositionInStream = "LATEST")
 		void handle(String payload) {
 		}
 
@@ -502,7 +515,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class PlaceholderPositionListener {
 
-		@KclListener(id = "placeholder-position", streamName = "orders", initialPositionInStream = "${app.initial-position}")
+		@KclListener(id = "placeholder-position", streamNames = "orders", initialPositionInStream = "${app.initial-position}")
 		void handle(String payload) {
 		}
 
@@ -510,7 +523,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class EmptyPositionListener {
 
-		@KclListener(id = "empty-position", streamName = "orders", initialPositionInStream = "")
+		@KclListener(id = "empty-position", streamNames = "orders", initialPositionInStream = "")
 		void handle(String payload) {
 		}
 
@@ -518,7 +531,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class AtTimestampPositionListener {
 
-		@KclListener(id = "at-timestamp-position", streamName = "orders", initialPositionInStream = "AT_TIMESTAMP")
+		@KclListener(id = "at-timestamp-position", streamNames = "orders", initialPositionInStream = "AT_TIMESTAMP")
 		void handle(String payload) {
 		}
 
@@ -558,7 +571,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class PerStreamIdentityListener {
 
-		@KclListener(id = "per-stream", streamName = "orders", retrievalMode = "ENHANCED_FAN_OUT", consumerName = "arn:aws:kinesis:eu-west-1:123456789012:stream/orders", leaseTableName = "orders-leases", metricsNamespace = "orders-metrics")
+		@KclListener(id = "per-stream", streamNames = "orders", retrievalMode = "ENHANCED_FAN_OUT", consumerName = "arn:aws:kinesis:eu-west-1:123456789012:stream/orders", leaseTableName = "orders-leases", metricsNamespace = "orders-metrics")
 		void handle(String payload) {
 		}
 
@@ -566,7 +579,31 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class ConsumerNameListener {
 
-		@KclListener(id = "consumer-name", streamName = "orders", retrievalMode = "ENHANCED_FAN_OUT", consumerName = "orders-consumer")
+		@KclListener(id = "consumer-name", streamNames = "orders", retrievalMode = "ENHANCED_FAN_OUT", consumerName = "orders-consumer")
+		void handle(String payload) {
+		}
+
+	}
+
+	@Configuration
+	@Import(KclBootstrapConfiguration.class)
+	static class MultiStreamConfig {
+
+		@Bean
+		CapturingContainerFactory containerFactory() {
+			return new CapturingContainerFactory();
+		}
+
+		@Bean
+		MultiStreamListener multiStreamListener() {
+			return new MultiStreamListener();
+		}
+
+	}
+
+	static class MultiStreamListener {
+
+		@KclListener(id = "multi-stream", streamNames = { "orders", "shipments" })
 		void handle(String payload) {
 		}
 
@@ -574,7 +611,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class NoIdListener {
 
-		@KclListener(streamName = "events")
+		@KclListener(streamNames = "events")
 		void handle(String payload) {
 		}
 
@@ -582,7 +619,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class ModesListener {
 
-		@KclListener(id = "modes", streamName = "orders", checkpointMode = "RECORD", retrievalMode = "ENHANCED_FAN_OUT")
+		@KclListener(id = "modes", streamNames = "orders", checkpointMode = "RECORD", retrievalMode = "ENHANCED_FAN_OUT")
 		void handle(String payload) {
 		}
 
@@ -590,7 +627,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class NamedFactoryListener {
 
-		@KclListener(id = "named", streamName = "orders", factory = "secondaryFactory")
+		@KclListener(id = "named", streamNames = "orders", factory = "secondaryFactory")
 		void handle(String payload) {
 		}
 
@@ -598,7 +635,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class SendToListener {
 
-		@KclListener(id = "send-to", streamName = "orders")
+		@KclListener(id = "send-to", streamNames = "orders")
 		@SendTo("out-stream")
 		String handle(String payload) {
 			return payload;
@@ -608,7 +645,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class PlaceholderListener {
 
-		@KclListener(id = "placeholder", streamName = "${app.stream}")
+		@KclListener(id = "placeholder", streamNames = "${app.stream}")
 		void handle(String payload) {
 		}
 
@@ -624,11 +661,11 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class MultiListener {
 
-		@KclListener(id = "first", streamName = "first-stream")
+		@KclListener(id = "first", streamNames = "first-stream")
 		void handleFirst(String payload) {
 		}
 
-		@KclListener(id = "second", streamName = "second-stream")
+		@KclListener(id = "second", streamNames = "second-stream")
 		void handleSecond(String payload) {
 		}
 
@@ -643,7 +680,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class OrderListener {
 
-		@KclListener(id = "order-listener", streamName = "orders", applicationName = "order-processor")
+		@KclListener(id = "order-listener", streamNames = "orders", applicationName = "order-processor")
 		void handle(String payload) {
 		}
 
@@ -651,7 +688,7 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class NoAppNameListener {
 
-		@KclListener(id = "no-app", streamName = "events")
+		@KclListener(id = "no-app", streamNames = "events")
 		void handle(String payload) {
 		}
 
@@ -659,10 +696,10 @@ class KclListenerAnnotationBeanPostProcessorTests {
 
 	static class CapturingContainerFactory implements MessageListenerContainerFactory {
 
-		private final List<KclListenerEndpoint> endpoints = new ArrayList<>();
+		private final List<KclEndpoint> endpoints = new ArrayList<>();
 
 		@Override
-		public MessageListenerContainer createContainer(KclListenerEndpoint endpoint) {
+		public MessageListenerContainer createContainer(KclEndpoint endpoint) {
 			this.endpoints.add(endpoint);
 			return new StubContainer(endpoint.getId());
 		}

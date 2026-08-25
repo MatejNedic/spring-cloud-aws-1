@@ -16,6 +16,7 @@
 package io.awspring.cloud.kinesis.listener.retrieval;
 
 import io.awspring.cloud.kinesis.listener.KclContainerOptions;
+import java.util.Collection;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.kinesis.retrieval.RetrievalSpecificConfig;
 import software.amazon.kinesis.retrieval.polling.PollingConfig;
@@ -27,9 +28,12 @@ import software.amazon.kinesis.retrieval.polling.PollingConfig;
 public class PollingRetrievalConfigurer implements KclRetrievalConfigurer {
 
 	@Override
-	public RetrievalSpecificConfig createRetrievalConfig(String streamName, String applicationName,
+	public RetrievalSpecificConfig createRetrievalConfig(Collection<String> streamNames, String applicationName,
 			KinesisAsyncClient kinesisClient, KclContainerOptions options) {
-		return new PollingConfig(streamName, kinesisClient).maxRecords(options.getMaxRecords())
+		PollingConfig pollingConfig = streamNames.size() == 1
+				? new PollingConfig(streamNames.iterator().next(), kinesisClient)
+				: new PollingConfig(kinesisClient);
+		return pollingConfig.maxRecords(options.getMaxRecords())
 				.idleTimeBetweenReadsInMillis(options.getIdleTimeBetweenReadsInMillis());
 	}
 

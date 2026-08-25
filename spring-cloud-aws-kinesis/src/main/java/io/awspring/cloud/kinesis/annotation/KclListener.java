@@ -34,18 +34,18 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
  * @author Matej Nedic
  * @since 4.2.0
  */
-@Target({ ElementType.METHOD, ElementType.TYPE, ElementType.ANNOTATION_TYPE })
+@Target({ ElementType.METHOD, ElementType.ANNOTATION_TYPE })
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @MessageMapping
 public @interface KclListener {
 
 	/**
-	 * The name of the Kinesis stream to consume from. Alias for {@link #streamName()}.
-	 * @return the stream name.
+	 * The names of the Kinesis streams to consume from. Alias for {@link #streamNames()}.
+	 * @return the stream names.
 	 */
-	@AliasFor("streamName")
-	String value() default "";
+	@AliasFor("streamNames")
+	String[] value() default {};
 
 	/**
 	 * An id for the {@link io.awspring.cloud.kinesis.listener.MessageListenerContainer} that will be created to handle
@@ -55,11 +55,18 @@ public @interface KclListener {
 	String id() default "";
 
 	/**
-	 * The name of the Kinesis stream to consume from. Alias for {@link #value()}.
-	 * @return the stream name.
+	 * The names of the Kinesis streams to consume from. Alias for {@link #value()}.
+	 * <p>
+	 * Declaring several streams makes one container consume all of them under a single KCL application, so they share
+	 * one lease table and one set of workers instead of one application per stream. Group streams this way only when
+	 * their records share the payload type the listener method declares, since all of them are dispatched to that one
+	 * signature; streams with differing shapes fail conversion at runtime. Multi-stream listeners also share the
+	 * checkpoint mode, initial position and metrics namespace, and require {@code POLLING} retrieval, since an enhanced
+	 * fan-out consumer belongs to a single stream.
+	 * @return the stream names.
 	 */
 	@AliasFor("value")
-	String streamName() default "";
+	String[] streamNames() default {};
 
 	/**
 	 * The KCL application name used for lease coordination. Defaults to the container id when not set.
@@ -75,7 +82,7 @@ public @interface KclListener {
 	String factory() default "";
 
 	/**
-	 * The {@link io.awspring.cloud.kinesis.listener.checkpoint.CheckpointMode} to be used for this endpoint. If not
+	 * The {@link io.awspring.cloud.kinesis.listener.checkpoint.KclCheckpointMode} to be used for this endpoint. If not
 	 * specified, the mode defined on the container factory is used.
 	 * @return the checkpoint mode.
 	 */

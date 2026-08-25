@@ -16,16 +16,27 @@
 package io.awspring.cloud.kinesis.listener.retrieval;
 
 import io.awspring.cloud.kinesis.listener.KclContainerOptions;
+import java.util.Collection;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.kinesis.retrieval.RetrievalSpecificConfig;
 
 /**
+ * Creates the KCL retrieval configuration for a listener container.
+ *
  * @author Matej Nedic
  * @since 4.2.0
  */
 public interface KclRetrievalConfigurer {
 
-	RetrievalSpecificConfig createRetrievalConfig(String streamName, String applicationName,
+	/**
+	 * Creates the retrieval configuration for the given streams.
+	 * @param streamNames the streams the container consumes, never empty.
+	 * @param applicationName the KCL application name.
+	 * @param kinesisClient the client to read records with.
+	 * @param options the container options.
+	 * @return the retrieval configuration.
+	 */
+	RetrievalSpecificConfig createRetrievalConfig(Collection<String> streamNames, String applicationName,
 			KinesisAsyncClient kinesisClient, KclContainerOptions options);
 
 }
