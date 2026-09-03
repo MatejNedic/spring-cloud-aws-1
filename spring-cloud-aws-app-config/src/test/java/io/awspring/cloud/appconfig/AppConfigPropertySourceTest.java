@@ -25,6 +25,9 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
@@ -264,6 +267,58 @@ class AppConfigPropertySourceTest {
 
 		copy.init();
 
+		verify(client, times(1)).startConfigurationSession(any(StartConfigurationSessionRequest.class));
+	}
+
+	@Test
+	void refreshShouldTakeOverSessionTokenFromClone() {
+		AppConfigPropertySource propertySource = new AppConfigPropertySource(DEFAULT_CONTEXT, client);
+
+		when(client.getLatestConfiguration(any(GetLatestConfigurationRequest.class)))
+				.thenReturn(buildResponse("key1=value1", "text/plain", "next-token-1"));
+
+		propertySource.init();
+
+		AppConfigPropertySource copy = propertySource.copy();
+
+		when(client.getLatestConfiguration(any(GetLatestConfigurationRequest.class)))
+				.thenReturn(buildResponse("key1=value1", "text/plain", "next-token-2"));
+
+		copy.init();
+		propertySource.refresh(copy);
+
+		AppConfigPropertySource nextCopy = propertySource.copy();
+		when(client.getLatestConfiguration(any(GetLatestConfigurationRequest.class))).thenAnswer(invocation -> {
+			GetLatestConfigurationRequest request = invocation.getArgument(0);
+			assertThat(request.configurationToken()).isEqualTo("next-token-2");
+			return buildResponse("key1=value1", "text/plain", "next-token-3");
+		});
+
+		nextCopy.init();
+	}
+
+	@Test
+	void everyPollingCycleUsesFreshSessionToken() {
+		List<String> tokensUsed = new ArrayList<>();
+		AtomicInteger counter = new AtomicInteger();
+
+		when(client.getLatestConfiguration(any(GetLatestConfigurationRequest.class))).thenAnswer(invocation -> {
+			GetLatestConfigurationRequest request = invocation.getArgument(0);
+			tokensUsed.add(request.configurationToken());
+			return buildResponse("key1=value1", "text/plain", "next-token-" + counter.incrementAndGet());
+		});
+
+		AppConfigPropertySource propertySource = new AppConfigPropertySource(DEFAULT_CONTEXT, client);
+		propertySource.init();
+
+		for (int i = 0; i < 3; i++) {
+			AppConfigPropertySource copy = propertySource.copy();
+			copy.init();
+			propertySource.refresh(copy);
+		}
+
+		assertThat(tokensUsed).containsExactly("initial-token", "next-token-1", "next-token-2", "next-token-3");
+		assertThat(tokensUsed).doesNotHaveDuplicates();
 		verify(client, times(1)).startConfigurationSession(any(StartConfigurationSessionRequest.class));
 	}
 

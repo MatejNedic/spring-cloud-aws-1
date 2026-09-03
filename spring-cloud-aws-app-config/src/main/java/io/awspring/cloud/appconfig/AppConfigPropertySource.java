@@ -89,6 +89,11 @@ public class AppConfigPropertySource extends AwsPropertySource<AppConfigProperty
 	}
 
 	@Override
+	public void refresh(AwsPropertySource<?, ?> clone) {
+		this.sessionToken = ((AppConfigPropertySource) clone).sessionToken;
+	}
+
+	@Override
 	public AppConfigPropertySource copy() {
 		return new AppConfigPropertySource(context, appConfigClient, sessionToken, new LinkedHashMap<>(properties));
 	}
