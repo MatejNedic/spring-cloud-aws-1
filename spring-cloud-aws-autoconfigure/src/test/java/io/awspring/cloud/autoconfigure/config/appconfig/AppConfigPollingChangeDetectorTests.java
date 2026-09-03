@@ -31,6 +31,7 @@ import io.awspring.cloud.autoconfigure.config.reload.ReloadProperties;
 import io.awspring.cloud.autoconfigure.config.reload.ReloadStrategy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,8 +39,13 @@ import org.springframework.core.env.StandardEnvironment;
 import org.springframework.scheduling.TaskScheduler;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.appconfigdata.AppConfigDataClient;
+import software.amazon.awssdk.services.appconfigdata.model.BadRequestDetails;
+import software.amazon.awssdk.services.appconfigdata.model.BadRequestException;
+import software.amazon.awssdk.services.appconfigdata.model.BadRequestReason;
 import software.amazon.awssdk.services.appconfigdata.model.GetLatestConfigurationRequest;
 import software.amazon.awssdk.services.appconfigdata.model.GetLatestConfigurationResponse;
+import software.amazon.awssdk.services.appconfigdata.model.InvalidParameterDetail;
+import software.amazon.awssdk.services.appconfigdata.model.InvalidParameterProblem;
 import software.amazon.awssdk.services.appconfigdata.model.StartConfigurationSessionRequest;
 import software.amazon.awssdk.services.appconfigdata.model.StartConfigurationSessionResponse;
 
@@ -107,6 +113,42 @@ class AppConfigPollingChangeDetectorTests {
 
 		assertThat(tokensUsed).containsExactly("token-0", "token-1", "token-2");
 		verify(strategy, times(2)).run();
+	}
+
+	@Test
+	void recoversFromExpiredTokenAndKeepsPolling() {
+		respondWith("key1=value1");
+
+		AppConfigPropertySource propertySource = new AppConfigPropertySource(CONTEXT, client);
+		propertySource.init();
+		environment.getPropertySources().addFirst(propertySource);
+
+		PollingAwsPropertySourceChangeDetector<AppConfigPropertySource> detector = detector();
+
+		when(client.startConfigurationSession(any(StartConfigurationSessionRequest.class))).thenReturn(
+				StartConfigurationSessionResponse.builder().initialConfigurationToken("recovered-token").build());
+		when(client.getLatestConfiguration(any(GetLatestConfigurationRequest.class))).thenAnswer(invocation -> {
+			GetLatestConfigurationRequest request = invocation.getArgument(0);
+			tokensUsed.add(request.configurationToken());
+			if ("token-1".equals(request.configurationToken())) {
+				throw BadRequestException.builder().message("Token not valid")
+						.reason(BadRequestReason.INVALID_PARAMETERS)
+						.details(BadRequestDetails.builder()
+								.invalidParameters(Map.of("ConfigurationToken", InvalidParameterDetail.builder()
+										.problem(InvalidParameterProblem.EXPIRED).build()))
+								.build())
+						.build();
+			}
+			return GetLatestConfigurationResponse.builder().configuration(SdkBytes.fromUtf8String("key1=value1"))
+					.contentType("text/plain").nextPollConfigurationToken("token-" + tokenCounter.incrementAndGet())
+					.build();
+		});
+
+		detector.executeCycle();
+		detector.executeCycle();
+
+		assertThat(tokensUsed).containsExactly("token-0", "token-1", "recovered-token", "token-2");
+		verify(strategy, never()).run();
 	}
 
 	private PollingAwsPropertySourceChangeDetector<AppConfigPropertySource> detector() {

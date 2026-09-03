@@ -26,8 +26,12 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import software.amazon.awssdk.services.appconfigdata.AppConfigDataClient;
+import software.amazon.awssdk.services.appconfigdata.model.BadRequestDetails;
+import software.amazon.awssdk.services.appconfigdata.model.BadRequestException;
 import software.amazon.awssdk.services.appconfigdata.model.GetLatestConfigurationRequest;
 import software.amazon.awssdk.services.appconfigdata.model.GetLatestConfigurationResponse;
+import software.amazon.awssdk.services.appconfigdata.model.InvalidParameterDetail;
+import software.amazon.awssdk.services.appconfigdata.model.InvalidParameterProblem;
 import software.amazon.awssdk.services.appconfigdata.model.StartConfigurationSessionRequest;
 
 /**
@@ -63,6 +67,29 @@ public class AppConfigPropertySource extends AwsPropertySource<AppConfigProperty
 
 	@Override
 	public void init() {
+		try {
+			load();
+		}
+		catch (BadRequestException e) {
+			if (isExceptionRecoverable(e)) {
+			sessionToken = null;
+			load();
+			} else {
+				throw e;
+			}
+		}
+	}
+
+	private boolean isExceptionRecoverable(BadRequestException e) {
+		BadRequestDetails detail = e.details();
+		if (detail == null || !detail.hasInvalidParameters()) {
+			return false;
+		}
+		return detail.invalidParameters().values().stream().map(InvalidParameterDetail::problem)
+				.anyMatch(prob -> prob == InvalidParameterProblem.EXPIRED || prob == InvalidParameterProblem.CORRUPTED);
+	}
+
+	public void load() {
 		if (!StringUtils.hasText(sessionToken)) {
 			var request = StartConfigurationSessionRequest.builder()
 					.applicationIdentifier(context.getApplicationIdentifier())
