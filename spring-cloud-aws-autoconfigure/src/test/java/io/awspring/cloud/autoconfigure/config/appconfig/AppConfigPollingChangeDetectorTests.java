@@ -133,10 +133,12 @@ class AppConfigPollingChangeDetectorTests {
 			if ("token-1".equals(request.configurationToken())) {
 				throw BadRequestException.builder().message("Token not valid")
 						.reason(BadRequestReason.INVALID_PARAMETERS)
-						.details(BadRequestDetails.builder()
-								.invalidParameters(Map.of("ConfigurationToken", InvalidParameterDetail.builder()
-										.problem(InvalidParameterProblem.EXPIRED).build()))
-								.build())
+						.details(
+								BadRequestDetails.builder()
+										.invalidParameters(Map.of("ConfigurationToken",
+												InvalidParameterDetail.builder()
+														.problem(InvalidParameterProblem.EXPIRED).build()))
+										.build())
 						.build();
 			}
 			return GetLatestConfigurationResponse.builder().configuration(SdkBytes.fromUtf8String("key1=value1"))

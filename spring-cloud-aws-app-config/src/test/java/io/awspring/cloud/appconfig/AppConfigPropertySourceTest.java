@@ -445,8 +445,8 @@ class AppConfigPropertySourceTest {
 	private BadRequestException badRequest(InvalidParameterProblem problem) {
 		return BadRequestException.builder().message("Token not valid").reason(BadRequestReason.INVALID_PARAMETERS)
 				.details(BadRequestDetails.builder()
-						.invalidParameters(Map.of("ConfigurationToken",
-								InvalidParameterDetail.builder().problem(problem).build()))
+						.invalidParameters(
+								Map.of("ConfigurationToken", InvalidParameterDetail.builder().problem(problem).build()))
 						.build())
 				.build();
 	}

@@ -72,24 +72,16 @@ public class AppConfigPropertySource extends AwsPropertySource<AppConfigProperty
 		}
 		catch (BadRequestException e) {
 			if (isExceptionRecoverable(e)) {
-			sessionToken = null;
-			load();
-			} else {
+				sessionToken = null;
+				load();
+			}
+			else {
 				throw e;
 			}
 		}
 	}
 
-	private boolean isExceptionRecoverable(BadRequestException e) {
-		BadRequestDetails detail = e.details();
-		if (detail == null || !detail.hasInvalidParameters()) {
-			return false;
-		}
-		return detail.invalidParameters().values().stream().map(InvalidParameterDetail::problem)
-				.anyMatch(prob -> prob == InvalidParameterProblem.EXPIRED || prob == InvalidParameterProblem.CORRUPTED);
-	}
-
-	public void load() {
+	private void load() {
 		if (!StringUtils.hasText(sessionToken)) {
 			var request = StartConfigurationSessionRequest.builder()
 					.applicationIdentifier(context.getApplicationIdentifier())
@@ -97,6 +89,7 @@ public class AppConfigPropertySource extends AwsPropertySource<AppConfigProperty
 					.configurationProfileIdentifier(context.getConfigurationProfileIdentifier()).build();
 			sessionToken = appConfigClient.startConfigurationSession(request).initialConfigurationToken();
 		}
+
 
 		GetLatestConfigurationRequest request = GetLatestConfigurationRequest.builder().configurationToken(sessionToken)
 				.build();
@@ -113,6 +106,15 @@ public class AppConfigPropertySource extends AwsPropertySource<AppConfigProperty
 			}
 		}
 		sessionToken = response.nextPollConfigurationToken();
+	}
+
+	private boolean isExceptionRecoverable(BadRequestException e) {
+		BadRequestDetails detail = e.details();
+		if (detail == null || !detail.hasInvalidParameters()) {
+			return false;
+		}
+		return detail.invalidParameters().values().stream().map(InvalidParameterDetail::problem)
+			.anyMatch(prob -> prob == InvalidParameterProblem.EXPIRED || prob == InvalidParameterProblem.CORRUPTED);
 	}
 
 	@Override
